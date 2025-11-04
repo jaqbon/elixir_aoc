@@ -1,0 +1,92 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.replace(&1, ",", ""))
+  |> Enum.map(&String.split(&1, " ", trim: true))
+```
+
+```elixir
+defmodule Day23 do
+  def make_code(lines) do
+    lines
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {[op | rest] = list, index}, code ->
+          case op do
+            "hlf" -> Map.put(code, index, list)
+            "tpl" -> Map.put(code, index, list)
+            "inc" -> Map.put(code, index, list)
+            "jmp" -> [str] = rest; Map.put(code, index, [op, String.to_integer(str)])
+            "jie" -> [reg, str] = rest; Map.put(code, index, [op, reg, String.to_integer(str)])
+            "jio" -> [reg, str] = rest; Map.put(code, index, [op, reg, String.to_integer(str)])
+          end
+        end)
+  end
+
+
+  def execute(code, ["hlf", "a"], {a, b}, pc), do: run(code, {div(a,2),b}, pc+1)
+  def execute(code, ["hlf", "b"], {a, b}, pc), do: run(code, {a,div(b,2)}, pc+1)
+
+  def execute(code, ["tpl", "a"], {a, b}, pc), do: run(code, {3*a,b}, pc+1)
+  def execute(code, ["tpl", "b"], {a, b}, pc), do: run(code, {a,3*b}, pc+1)
+
+  def execute(code, ["inc", "a"], {a, b}, pc), do: run(code, {a+1,b}, pc+1)
+  def execute(code, ["inc", "b"], {a, b}, pc), do: run(code, {a,b+1}, pc+1)
+
+  def execute(code, ["jmp", offset], registers, pc), do: run(code, registers, pc+offset)
+
+  def execute(code, ["jie", r, offset], {a, b}, pc) do
+    val = if r == "a", do: a, else: b
+
+    case rem(val, 2) do
+      0 -> run(code, {a,b}, pc+offset)
+      1 -> run(code, {a,b}, pc+1)
+    end
+  end
+
+  def execute(code, ["jio", r, offset], {a, b}, pc) do
+    val = if r == "a", do: a, else: b
+
+    case val do
+      1 -> run(code, {a,b}, pc+offset)
+      _ -> run(code, {a,b}, pc+1)
+    end
+  end
+
+  def run(code, registers, pc) do
+    case code[pc] do
+      nil -> registers
+      op  -> execute(code, op, registers, pc)
+    end
+  end
+
+  def run(code, registers \\ {0,0}), do: run(code, registers, 0)
+end
+```
+
+```elixir
+code = Day23.make_code(lines)
+```
+
+```elixir
+Day23.run(code)
+```
+
+```elixir
+Day23.run(code, {1,0})
+```

@@ -1,0 +1,43 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+dims =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1,"x"))
+  |> Enum.map(fn [l,w,h] ->
+      [String.to_integer(l), String.to_integer(w), String.to_integer(h)] end)
+```
+
+```elixir
+areas = dims |> Enum.map(fn [l,w,h] -> Enum.sort([l*w,l*h,w*h]) end)
+```
+
+```elixir
+paper_areas = areas |> Enum.map(fn [a1,a2,a3] -> 2*(a1 + a2 + a3) + a1 end)
+```
+
+```elixir
+total_area = Enum.sum(paper_areas)
+```
+
+```elixir
+lengths = dims |> Enum.map(fn [l,w,h] -> 2*Enum.min([l+w,l+h,w+h]) + l*w*h end)
+```
+
+```elixir
+total_length = lengths |> Enum.sum()
+```

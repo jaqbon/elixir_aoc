@@ -1,0 +1,138 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+test_input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[test_starter | test_replacement_strings] =
+  test_input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.reverse()
+```
+
+```elixir
+test_replacements =
+  test_replacement_strings
+  |> Enum.map(&String.split(&1, " => ", trim: true))
+  |> Enum.reduce(%{}, fn [x,y], acc ->
+      case Map.has_key?(acc, x) do
+        true -> Map.replace!(acc, x, [y | Map.get(acc, x)])
+        _    -> Map.put(acc, x, [y])
+      end
+    end)
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[starter | replacement_strings] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.reverse()
+```
+
+```elixir
+replacements =
+  replacement_strings
+  |> Enum.map(&String.split(&1, " => ", trim: true))
+  |> Enum.reduce(%{}, fn [x,y], acc ->
+      case Map.has_key?(acc, x) do
+        true -> Map.replace!(acc, x, [y | Map.get(acc, x)])
+        _    -> Map.put(acc, x, [y])
+      end
+    end)
+```
+
+```elixir
+defmodule Day19_Part1 do
+
+  def find_all_splits(_, "", _, list), do: list
+
+  def find_all_splits(left, right, tgt, list) do
+    # left and right for next iteration
+    # move first character of right to the end of left
+    l = left <> String.slice(right, 0, 1)
+    r = String.slice(right, 1..-1//1)
+
+    # find left and right pieces between which the replacements will be inserted
+    case String.starts_with?(right, tgt) do
+      true -> tail = String.replace_prefix(right, tgt, "")
+              find_all_splits(l, r, tgt, [{left, tail} | list])
+      _    -> find_all_splits(l, r, tgt, list)
+    end
+  end
+
+  def find_all_splits(molecule, tgt) do
+    find_all_splits("", molecule, tgt, [])
+  end
+
+  def find_products(molecule, tgt, reps) do
+    find_all_splits(molecule, tgt)
+    |> Enum.reduce([], fn {left,right}, ps ->
+        Enum.reduce(reps, [], fn rep, acc -> [left <> rep <> right | acc] end) ++ ps
+        end)
+    |> Enum.uniq()
+  end
+
+  def find_all_products(molecule, replacement_map) do
+    replacement_map
+    |> Enum.reduce([], fn {tgt,reps}, products ->
+        find_products(molecule, tgt, reps) ++ products end)
+    |> Enum.uniq()
+  end
+
+
+
+#  def alt_find_all_products(_, "", _, products), do: products
+#
+#  def alt_find_all_products(left, right, replacement_map, products) do
+#    replacement_map
+#    |> Enum.reduce([], fn {tgt, reps}, ps ->
+#        case String.starts_with?(right, tgt) do
+#          true -> tail = String.replace_leading(right, tgt, "")
+#                  Enum.reduce(reps, [], fn r, acc -> [left <> r <> tail | acc] end) ++ ps
+#          _    -> ps
+#        end
+#      end)
+#    |> Enum.concat(products)
+#    end
+#
+#  def alt_find_all_products(str, replacement_map) do
+#    alt_find_all_products("", str, replacement_map, [])
+#    |> Enum.uniq()
+#  end
+end
+```
+
+```elixir
+Day19_Part1.find_all_splits(test_starter, "H")
+```
+
+```elixir
+Day19_Part1.find_products(test_starter, "H", Map.get(test_replacements, "H"))
+```
+
+```elixir
+Day19_Part1.find_products(test_starter, "O", Map.get(test_replacements, "O"))
+```
+
+```elixir
+Day19_Part1.find_all_products(test_starter, test_replacements)
+```
+
+```elixir
+Day19_Part1.find_all_products(starter, replacements) |> Enum.count()
+```

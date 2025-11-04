@@ -1,0 +1,73 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+dirs = input |> Kino.Input.read() |> String.split("", trim: true)
+```
+
+```elixir
+{_,unique_visits} =
+  dirs
+  |> Enum.reduce({{0,0},%{}}, fn dir, {{x,y},visits} ->
+    new_xy =
+      case dir do
+        ">" -> {x+1,y}
+        "<" -> {x-1,y}
+        "^" -> {x,y+1}
+        "v" -> {x,y-1}
+      end
+
+    new_visits =
+      case Map.has_key?(visits, new_xy) do
+        true -> Map.replace!(visits, new_xy, Map.get(visits, new_xy)+1)
+        _    -> Map.put(visits, new_xy, 1)
+      end
+
+    {new_xy, new_visits}
+  end)
+```
+
+```elixir
+total_uniques = map_size(unique_visits)
+```
+
+```elixir
+{_,_,_,unique_robo_visits} =
+  dirs
+  |> Enum.reduce({0,{0,0},{0,0},%{}}, fn dir, {cnt,xys,xyr,visits} ->
+    {x,y} = if rem(cnt,2) == 0, do: xys, else: xyr
+    
+    new_xy =
+      case dir do
+        ">" -> {x+1,y}
+        "<" -> {x-1,y}
+        "^" -> {x,y+1}
+        "v" -> {x,y-1}
+      end
+
+    new_visits =
+      case Map.has_key?(visits, new_xy) do
+        true -> Map.replace!(visits, new_xy, Map.get(visits, new_xy)+1)
+        _    -> Map.put(visits, new_xy, 1)
+      end
+
+    {new_xys, new_xyr} = if rem(cnt,2) == 0, do: {new_xy, xyr}, else: {xys, new_xy}
+    
+    {cnt+1, new_xys, new_xyr, new_visits}
+  end)
+```
+
+```elixir
+total_robo_uniques = map_size(unique_robo_visits)
+```

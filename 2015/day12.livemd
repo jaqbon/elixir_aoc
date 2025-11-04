@@ -1,0 +1,213 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+cs =
+  input
+  |> Kino.Input.read()
+  #> String.split("\n", trim: true)
+  |> String.split("", trim: true)
+```
+
+```elixir
+defmodule Day12_Part1 do
+  def build_number([], sgn, n, ns) do
+    find_numbers([], [sgn*n | ns])
+  end
+
+  def build_number([c | rest], sgn, n, ns) do
+    [x] = String.to_charlist(c)
+    case x in ?0..?9 do
+      true -> build_number(rest, sgn, 10*n + (x - ?0), ns)
+      _    -> find_numbers(rest, [sgn*n | ns])
+    end
+  end
+
+  
+  def find_numbers([], ns), do: ns
+
+  def find_numbers(["-", c | rest], ns) do
+    [x] = String.to_charlist(c)
+    case x in ?0..?9 do
+      true -> build_number(rest, -1, (x-?0), ns)
+      _    -> find_numbers(rest, ns)
+    end
+  end
+
+  def find_numbers([c | rest], ns) do
+    [x] = String.to_charlist(c)
+    case x in ?0..?9 do
+      true -> build_number(rest, 1, (x-?0), ns)
+      _    -> find_numbers(rest, ns)
+    end
+  end
+  def find_numbers(cs), do: find_numbers(cs, [])
+end
+```
+
+```elixir
+Day12_Part1.find_numbers(cs) |> Enum.sum()
+```
+
+```elixir
+defmodule Day12_Part2 do
+  def find_excluded_brackets([], _, _, list), do: list
+
+  def find_excluded_brackets(["r", "e", "d" | rest], cnt, stack, list) do
+    find_excluded_brackets(rest, cnt+3, [{"r", cnt} | stack], list)
+  end
+
+  def find_excluded_brackets(["{" | rest], cnt, stack, list) do
+    find_excluded_brackets(rest, cnt+1, [{"{", cnt} | stack], list)
+  end
+
+  def find_excluded_brackets(["}" | rest], cnt, stack, list) do
+    case stack do
+      [{"r", _}, {"{", i1} | stk] -> find_excluded_brackets(rest, cnt+1, stk, [{i1, cnt} | list])
+      [{"{", _} | stk]            -> find_excluded_brackets(rest, cnt+1, stk, list)
+    end
+  end
+
+  def find_excluded_brackets(["[" | rest], cnt, stack, list) do
+    find_excluded_brackets(rest, cnt+1, [{"[", cnt} | stack], list)
+  end
+
+  def find_excluded_brackets(["]" | rest], cnt, stack, list) do
+    case stack do
+      [{"r", _}, {"[", _} | stk] -> find_excluded_brackets(rest, cnt+1, stk, list)
+      [{"[", _} | stk] -> find_excluded_brackets(rest, cnt+1, stk, list)
+    end
+  end
+
+  def find_excluded_brackets([_ | rest], cnt, stack, list) do
+    find_excluded_brackets(rest, cnt+1, stack, list)
+  end
+
+  def find_excluded_brackets(cs), do: find_excluded_brackets(cs, 0, [], [])
+
+
+
+  def brackets_and_reds([], _, list), do: Enum.reverse(list)
+
+  def brackets_and_reds(["r", "e", "d" | rest], cnt, list) do
+    brackets_and_reds(rest, cnt+3, [{cnt, "red"} | list])
+  end
+
+  def brackets_and_reds(["{" | rest], cnt, list) do
+    brackets_and_reds(rest, cnt+1, [{cnt, "{"} | list])
+  end
+  def brackets_and_reds(["}" | rest], cnt, list) do
+    brackets_and_reds(rest, cnt+1, [{cnt, "}"} | list])
+  end
+
+  def brackets_and_reds(["[" | rest], cnt, list) do
+    brackets_and_reds(rest, cnt+1, [{cnt, "["} | list])
+  end
+  def brackets_and_reds(["]" | rest], cnt, list) do
+    brackets_and_reds(rest, cnt+1, [{cnt, "]"} | list])
+  end
+
+  def brackets_and_reds([_ | rest], cnt, list) do
+    brackets_and_reds(rest, cnt+1, list)
+  end
+
+  def brackets_and_reds(cs), do: brackets_and_reds(cs, 0, [])
+
+
+  def remove_empties([], {changed, list}), do: {changed, Enum.reverse(list)}
+
+  def remove_empties([{_,"{"}, {_, "}"} | rest], {_,list}), do: remove_empties(rest, {true, list})
+
+  def remove_empties([{_,"["}, {_, "]"} | rest], {_,list}), do: remove_empties(rest, {true, list})
+
+  def remove_empties([x | rest], {changed, list}), do: remove_empties(rest, {changed, [x | list]})
+
+  def remove_empties(list), do: remove_empties(list, {false, []})
+
+
+  def remove_all_empties(list) do
+    case remove_empties(list) do
+      {false, new_list} -> new_list
+      {true,  new_list} -> remove_empties(new_list)
+    end
+  end
+
+
+  def find_ignored([], list), do: Enum.reverse(list)
+
+  def find_ignored([{i1, "{"}, {_, "red"}, {i2, "}"} | rest], list) do
+    find_ignored(rest, [{i1, i2} | list])
+  end
+
+  def find_ignored([_ | rest], list), do: find_ignored(rest, list)
+
+  def find_ignored(list), do: find_ignored(list, [])
+
+
+  def remove_ignored([], _, _, list), do: Enum.reverse(list)
+
+  def remove_ignored(cs, [], _, list), do: Enum.reverse(list) ++ cs
+
+  def remove_ignored([_ | rest_c], [{_, cnt} | rest_i], cnt, list) do
+    remove_ignored(rest_c, rest_i, cnt+1, list)
+  end
+
+  def remove_ignored([c | rest_c], [{i1, i2} | _] = ignored, cnt, list) do
+    case i1 <= cnt and cnt < i2 do
+      true -> remove_ignored(rest_c, ignored, cnt+1, list)
+      _    -> remove_ignored(rest_c, ignored, cnt+1, [c | list])
+    end
+  end
+
+  def remove_ignored(cs, ignored), do: remove_ignored(cs, ignored, 0, [])
+end
+```
+
+```elixir
+cs
+```
+
+```elixir
+b_and_r = Day12_Part2.brackets_and_reds(cs)
+```
+
+```elixir
+{_, no_empties} = b_and_r |> Day12_Part2.remove_all_empties()
+```
+
+```elixir
+ignored = Day12_Part2.find_ignored(no_empties)
+```
+
+```elixir
+no_ignored = Day12_Part2.remove_ignored(cs, ignored)
+```
+
+```elixir
+Day12_Part1.find_numbers(no_ignored) |> Enum.reverse()
+```
+
+```elixir
+{_, no_empties} =
+  cs
+  |> Day12_Part2.brackets_and_reds()
+  |> Day12_Part2.remove_all_empties()
+
+ignored = Day12_Part2.find_ignored(no_empties)
+
+cs
+|> Day12_Part2.remove_ignored(ignored)
+|> Day12_Part1.find_numbers()
+|> Enum.sum()
+```

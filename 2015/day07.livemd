@@ -1,0 +1,255 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+rules =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1," ", trim: true))
+```
+
+```elixir
+defmodule Day07 do
+  import Bitwise
+
+  def init_wires(str_rules) do
+    Enum.reduce(str_rules, %{}, fn tokens, acc1 ->
+      Enum.reduce(tokens, acc1, fn str, acc2 ->
+        [c] = String.to_charlist(String.first(str))
+        if c in ?a..?z, do: Map.put_new(acc2, str, nil), else: acc2
+      end)
+    end)
+  end
+
+  def is_digits?(token) do
+    case Integer.parse(token) do
+      {n, ""} -> {true, n}
+      _       -> {false, nil}
+    end
+  end
+
+  def is_op?(token) do
+    case token do
+      "OR"     -> {true, :or}
+      "AND"    -> {true, :and}
+      "NOT"    -> {true, :not}
+      "LSHIFT" -> {true, :lshift}
+      "RSHIFT" -> {true, :rshift}
+      _        -> {false, nil}
+    end
+  end
+
+  def make_rule(1, [t]) do
+    case is_digits?(t) do
+      {true, n} -> {:store_v, n}
+      _         -> {:store_w, t}
+    end
+  end
+
+  def make_rule(2, ["NOT", t]) do
+    {:not, t}
+  end
+
+  def make_rule(3, [t1, op, t2]) do
+    case op do
+      "OR"     -> case is_digits?(t1) do
+                    {true,n1} -> case is_digits?(t2) do
+                                   {true, n2} -> {:or_vv, n1, n2}
+                                   _          -> {:or_vw, n1, t2}
+                                 end
+                    _         -> case is_digits?(t2) do
+                                   {true, n2} -> {:or_wv, t1, n2}
+                                   _          -> {:or_ww, t1, t2}
+                                 end
+                    end
+
+      "AND"    -> case is_digits?(t1) do
+                    {true,n1} -> case is_digits?(t2) do
+                                   {true, n2} -> {:and_vv, n1, n2}
+                                   _          -> {:and_vw, n1, t2}
+                                 end
+                    _         -> case is_digits?(t2) do
+                                   {true, n2} -> {:and_wv, t1, n2}
+                                   _          -> {:and_ww, t1, t2}
+                                 end
+                    end
+
+      "LSHIFT" -> {:lshift, t1, String.to_integer(t2)}
+      "RSHIFT" -> {:rshift, t1, String.to_integer(t2)}
+    end
+  end
+
+  def init_rules(str_rules) do
+    Enum.reduce(str_rules, [], fn tokens, acc ->
+      rhs = Enum.at(tokens, -1)
+      lhs = Enum.drop(tokens, -2)
+
+      [{make_rule(length(lhs), lhs), rhs} | acc]
+        
+      end)
+  end
+
+  def execute_rule({{:store_v, v}, a}, wires) do
+    Map.replace!(wires, a, v)
+  end
+
+  def execute_rule({{:store_w, w}, a}, wires) do
+    v = Map.get(wires, w)
+    case v do
+      nil -> nil
+        _ -> Map.replace!(wires, a, v)
+    end
+  end
+
+  def execute_rule({{:not, a}, b}, wires) do
+    case Map.get(wires, a) do
+      nil -> nil
+      v   -> Map.replace!(wires, b, bnot(v))
+    end
+  end
+
+  
+  def execute_rule({{:or_vv, v1, v2}, c}, wires) do
+    Map.replace!(wires, c, v1 ||| v2)
+  end
+
+  def execute_rule({{:or_wv, a, v}, c}, wires) do
+    case Map.get(wires, a) do
+      nil -> nil
+      va  -> Map.replace!(wires, c, va ||| v)
+    end
+  end
+
+  def execute_rule({{:or_vw, v, a}, c}, wires) do
+    case Map.get(wires, a) do
+      nil -> nil
+      va  -> Map.replace!(wires, c, v ||| va)
+    end
+  end
+
+  def execute_rule({{:or_ww, a, b}, c}, wires) do
+    case {Map.get(wires, a), Map.get(wires, b)} do
+      {nil,_} -> nil
+      {_,nil} -> nil
+      {va,vb}-> Map.replace!(wires, c, va ||| vb)
+    end
+  end
+
+  
+  def execute_rule({{:and_vv, v1, v2}, c}, wires) do
+    Map.replace!(wires, c, v1 &&& v2)
+  end
+
+  def execute_rule({{:and_wv, a, v}, c}, wires) do
+    case Map.get(wires, a) do
+      nil -> nil
+      va  -> Map.replace!(wires, c, va &&& v)
+    end
+  end
+
+  def execute_rule({{:and_vw, v, a}, c}, wires) do
+    case Map.get(wires, a) do
+      nil -> nil
+      va  -> Map.replace!(wires, c, v &&& va)
+    end
+  end
+
+  def execute_rule({{:and_ww, a, b}, c}, wires) do
+    case {Map.get(wires, a), Map.get(wires, b)} do
+      {nil,_} -> nil
+      {_,nil} -> nil
+      {va,vb}-> Map.replace!(wires, c, va &&& vb)
+    end
+  end
+
+  
+  def execute_rule({{:lshift, a, n}, b}, wires) do
+    case Map.get(wires, a) do
+      nil -> nil
+      v   -> Map.replace!(wires, b, v <<< n)
+    end
+  end
+
+  def execute_rule({{:rshift, a, n}, b}, wires) do
+    case Map.get(wires, a) do
+      nil -> nil
+      v   -> Map.replace!(wires, b, v >>> n)
+    end
+  end
+
+  def execute_all_rules(rules, wires) do
+    Enum.reduce(rules, wires, fn r, w ->
+      case execute_rule(r,w) do
+        nil -> w
+        w1  -> w1
+      end
+    end)
+  end
+
+  def run_circuit(rules, wires) do
+    w = execute_all_rules(rules, wires)
+
+#    if Enum.any?(w, fn {_,v} -> v == nil end) do
+    if Map.get(w, "a") == nil do
+      #cnt = Enum.count(w, fn {_,v} -> v != nil end)
+      #IO.puts(cnt)
+      run_circuit(rules, w)
+    else
+      Enum.reduce(w, w, fn {a,v}, w1 ->
+        case v do
+          nil -> w1
+          _   -> if v < 0, do: Map.replace(w1, a, 2**16+v), else: w1
+        end
+      end)
+    end
+  end
+end
+```
+
+```elixir
+wires = Day07.init_wires(rules)
+```
+
+```elixir
+rules = Day07.init_rules(rules)
+```
+
+```elixir
+output_part1 = Day07.run_circuit(rules, wires)
+```
+
+```elixir
+a_part1 = Map.get(output_part1, "a")
+```
+
+```elixir
+Enum.filter(rules, fn {_, target} -> target == "b" end)
+```
+
+```elixir
+new_rules =
+  rules
+  |> Enum.map(fn {lhs, target} ->
+    if target == "b", do: {{:store_v, a_part1}, "b"}, else: {lhs, target}
+  end)
+```
+
+```elixir
+output_part2 = Day07.run_circuit(new_rules, wires)
+```
+
+```elixir
+a_part2 = Map.get(output_part2, "a")
+```

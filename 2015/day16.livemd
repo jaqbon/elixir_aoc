@@ -1,0 +1,115 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+sue_lists =
+  lines
+  |> Enum.map(&String.replace(&1, ",", ""))
+  |> Enum.map(&String.replace(&1, ":", ""))
+  |> Enum.map(&String.split(&1, " ", trim: true))
+```
+
+```elixir
+scan_input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+scan_lines =
+  scan_input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+scan_results =
+  scan_lines
+  |> Enum.map(&String.split(&1, ": ", trim: true))
+  |> Enum.reduce(%{}, fn [name, number], acc ->
+      Map.put(acc, name, String.to_integer(number)) end)
+```
+
+```elixir
+defmodule Day16 do
+  def make_sue_traits([], traits), do: traits
+
+  def make_sue_traits([trait, num | rest], traits) do
+    make_sue_traits(rest, [{trait, String.to_integer(num)} | traits])
+  end
+
+  def make_sue_traits(sue_lists) do
+    sue_lists
+    |> Enum.map(fn ["Sue", num | rest] -> {"Sue_" <> num, make_sue_traits(rest, [])} end)
+  end
+
+
+  def consistent?({_, traits}, scan_results) do
+    Enum.reduce_while(traits, true, fn {name, num}, _ ->
+      case Map.get(scan_results, name) do
+        nil -> {:cont, true}
+        val -> if val == num, do: {:cont, true}, else: {:halt, false}
+      end
+    end)
+  end
+
+  def find_all_consitent(all_sue_traits, scan_results) do
+    Enum.filter(all_sue_traits, &consistent?(&1, scan_results))
+  end
+
+  def test("cats", num, val), do: num > val
+  def test("trees", num, val), do: num > val
+  def test("pomeranians", num, val), do: num < val
+  def test("goldfish", num, val), do: num < val
+  def test(_, num, val), do: num == val
+
+  def new_consistent?({_, traits}, scan_results) do
+    Enum.reduce_while(traits, true, fn {name, num}, _ ->
+      result = Map.get(scan_results, name)
+      case result do
+        nil -> {:cont, true}
+        val ->  case test(name, num, val) do
+                  true -> {:cont, true}
+                  _    -> {:halt, false}
+                end
+      end
+    end)
+  end
+
+  def new_find_all_consitent(all_sue_traits, scan_results) do
+    Enum.filter(all_sue_traits, &new_consistent?(&1, scan_results))
+  end
+end
+```
+
+```elixir
+all_sue_traits = Day16.make_sue_traits(sue_lists)
+```
+
+```elixir
+Day16.consistent?({"test", [{"samoyeds", 2}, {"cars", 2}, {"goldfish", 5}]}, scan_results)
+```
+
+```elixir
+Day16.find_all_consitent(all_sue_traits, scan_results)
+```
+
+```elixir
+Day16.new_find_all_consitent(all_sue_traits, scan_results)
+```

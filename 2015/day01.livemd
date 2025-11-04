@@ -1,0 +1,53 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input1 = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines1 =
+  input1
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+[sorted_xs, sorted_ys] =
+  lines1
+  # https://stackoverflow.com/questions/39393177/how-can-i-replace-consecutive-whitespace-with-a-single-space-from-the-whole-stri
+  |> Enum.map(&String.replace(&1, ~r/ +/, " "))
+  |> Enum.map(&String.split(&1))
+  |> Enum.map(fn [s1, s2] -> [String.to_integer(s1), String.to_integer(s2)] end)
+  |> Enum.reduce([[], []], fn [x, y], [xs, ys] -> [[x | xs], [y | ys]] end)
+  |> Enum.map(&Enum.sort(&1))
+```
+
+```elixir
+pairs = Enum.zip(sorted_xs, sorted_ys)
+```
+
+```elixir
+total_distance =
+  pairs
+  |> Enum.map(fn {x, y} -> abs(x - y) end)
+  |> Enum.sum()
+```
+
+```elixir
+Enum.map(sorted_xs, fn x ->
+  Enum.reduce(sorted_ys, 0, fn y, cnt ->
+    if x == y, do: cnt + 1, else: cnt
+  end)
+end)
+|> Enum.zip(sorted_xs)
+|> Enum.map(fn {score, x} -> score * x end)
+|> Enum.sum()
+```

@@ -1,0 +1,149 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+"hello" |> to_charlist() |> Enum.at(0)
+```
+
+```elixir
+defmodule Day11 do
+  def increment_password_list([], 0, new), do: new
+  def increment_password_list([], 1, new), do: [?a | new]
+
+  def increment_password_list([first | rest], carry, new) do
+    n = (first - ?a) + carry
+    c = ?a + Integer.mod(n, 26)
+    increment_password_list(rest, Integer.floor_div(n, 26), [c | new])
+  end
+
+  def increment_password_list(list) do
+    list
+    |> Enum.reverse()
+    |> increment_password_list(1, [])
+  end
+
+  
+  def has_1_1?([_ | []]), do: false
+
+  def has_1_1?([1, 1 | _]), do: true
+
+  def has_1_1?(list), do: has_1_1?(Enum.drop(list, 1))
+
+  
+  def has_increasing_straight?([first | rest]) do
+    {_, diffs} =
+      rest
+      |> Enum.reduce({first,[]}, fn c, {last,ds} -> {c, [(c-last) | ds]} end)
+      
+    has_1_1?(diffs)
+  end
+
+  def has_no_i_o_l?(list), do: not Enum.any?(list, fn c -> c in [?i, ?l, ?o] end)
+
+
+  def consume_0s([], nzs), do: {nzs, []}
+
+  def consume_0s([0 | rest], nzs), do: consume_0s(rest, nzs+1)
+
+  def consume_0s(list, nzs), do: {nzs, list}
+
+
+  def has_0_x_0?([], _), do: false
+
+  def has_0_x_0?([0 | _] = list, npairs) do
+    {nzs, rest} = consume_0s(list, 0)
+
+    case nzs do
+      1 -> if npairs == 1, do: true, else: has_0_x_0?(rest, npairs+1)
+      _ -> has_0_x_0?(rest, npairs)
+    end
+  end
+
+  def has_0_x_0?([_ | rest], npairs), do: has_0_x_0?(rest, npairs)
+
+
+  def has_2_dif_pairs?([first | rest]) do
+    {_, diffs} =
+      rest
+      |> Enum.reduce({first,[]}, fn c, {last,ds} -> {c, [(c-last) | ds]} end)
+      
+    has_0_x_0?(diffs, 0)
+  end
+
+  def good_password_list?(list) do
+    has_increasing_straight?(list) and has_no_i_o_l?(list) and has_2_dif_pairs?(list)
+  end
+
+  def increment_password(str) do
+    new_list =
+      str
+      |> to_charlist()
+      |> increment_password_list()
+
+    case good_password_list?(new_list) do
+      true -> to_string(new_list)
+      _    -> increment_password_list(new_list) |> to_string() |> increment_password()
+    end
+  end
+end
+```
+
+```elixir
+"zzz" |> to_charlist() |> Day11.increment_password_list()
+```
+
+```elixir
+Day11.increment_password("aaz")
+```
+
+```elixir
+Day11.has_1_1?([1,9,3,1,5,7,1,1])
+```
+
+```elixir
+Day11.has_increasing_straight?([2,4,3,6,7,8,9])
+```
+
+```elixir
+Day11.has_no_i_o_l?([?a, ?b, ?x, ?q, ?z])
+```
+
+```elixir
+Day11.consume_0s([0,0,0,2,3,0,4,5], 0)
+```
+
+```elixir
+Day11.has_0_x_0?([1,2,0,1,0,6,0,8,9], 0)
+```
+
+```elixir
+"ghjaabcc"
+|> to_charlist()
+|> Day11.good_password_list?()
+```
+
+```elixir
+Day11.increment_password("hepxcrrq")
+```
+
+```elixir
+Day11.increment_password("hepxxyzz")
+```

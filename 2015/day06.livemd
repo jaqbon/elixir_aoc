@@ -1,0 +1,140 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+```
+
+```elixir
+String.split("turn on 917,936 through 928,959", " ", trim: true)
+```
+
+```elixir
+String.split("toggle 679,428 through 752,779", " ", trim: true)
+```
+
+```elixir
+defmodule Day06 do
+  def init_grid(nx, ny) do
+    for x <- 0..(nx-1),
+        y <- 0..(ny-1),
+        into: %{} do
+      {{x,y}, 0}
+    end
+  end
+
+  def decode_type(["toggle" | rest]), do: {-1, rest}
+  def decode_type([_, "off" | rest]), do: { 0, rest}
+  def decode_type([_, _     | rest]), do: { 1, rest}
+
+  def get_corner(str) do
+    [x,y] = String.split(str, ",", trim: true)
+
+    {String.to_integer(x), String.to_integer(y)}
+  end
+
+  def decode_instruction(instruction) do
+    list = String.split(instruction, " ", trim: true)
+
+    {type, [uplf, _, lwrt]} = decode_type(list)
+
+    xy1 = get_corner(uplf)
+    xy2 = get_corner(lwrt)
+
+    {type, xy1, xy2}
+  end
+
+  def execute_instruction(grid, {type, {x1,y1}, {x2,y2}}) do
+    xys = for x <- x1..x2, y <- y1..y2, do: {x,y}
+
+    case type do
+      0 -> Enum.reduce(xys, grid, fn xy, acc -> Map.replace!(acc, xy, 0) end)
+      1 -> Enum.reduce(xys, grid, fn xy, acc -> Map.replace!(acc, xy, 1) end)
+      _ -> Enum.reduce(xys, grid, fn xy, acc -> v = Map.get(acc, xy)
+                                                Map.replace(acc, xy, abs(v-1)) end)
+    end
+  end
+
+  def setup_lights(instructions) do
+    grid = init_grid(1000, 1000)
+
+    Enum.reduce(instructions, grid, fn ins, acc -> 
+      decode = decode_instruction(ins)
+      execute_instruction(acc, decode) end)
+  end
+
+  def new_off_action(grid, xy) do
+    {_,new_grid} = Map.get_and_update!(grid, xy, fn v -> {v, max(v-1,0)} end)
+    new_grid
+  end
+  def new_on_action(grid, xy) do
+    {_,new_grid} = Map.get_and_update!(grid, xy, fn v -> {v, v+1} end)
+    new_grid
+  end
+  def new_toggle_action(grid, xy) do
+    {_,new_grid} = Map.get_and_update!(grid, xy, fn v -> {v, v+2} end)
+    new_grid
+  end
+  
+  def execute_new_instruction(grid, {type, {x1,y1}, {x2,y2}}) do
+    xys = for x <- x1..x2, y <- y1..y2, do: {x,y}
+
+    case type do
+      0 -> Enum.reduce(xys, grid, fn xy, acc -> new_off_action(acc, xy) end)
+      1 -> Enum.reduce(xys, grid, fn xy, acc -> new_on_action(acc, xy) end)
+      _ -> Enum.reduce(xys, grid, fn xy, acc -> new_toggle_action(acc, xy) end)
+    end
+  end
+
+  def setup_new_lights(instructions) do
+    grid = init_grid(1000, 1000)
+
+    Enum.reduce(instructions, grid, fn ins, acc -> 
+      decode = decode_instruction(ins)
+      execute_new_instruction(acc, decode) end)
+  end
+end
+```
+
+```elixir
+step_0 = Day06.init_grid(5,5)
+```
+
+```elixir
+step_1 = Day06.execute_instruction(step_0, {1, {3,0}, {3,4}})
+```
+
+```elixir
+step_2 = Day06.execute_instruction(step_1, {-1, {0,0}, {4,0}})
+```
+
+```elixir
+lights = Day06.setup_lights(lines)
+```
+
+```elixir
+number_lit = Enum.count(lights, fn {_,state} -> state == 1 end)
+```
+
+```elixir
+new_lights = Day06.setup_new_lights(lines)
+```
+
+```elixir
+new_lights_total = Enum.sum_by(new_lights, fn {_,state} -> state end)
+```

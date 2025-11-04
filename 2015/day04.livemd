@@ -1,0 +1,68 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#line = input |> Kino.Input.read()
+```
+
+```elixir
+:crypto.hash(:md5, "abcdef609043") |> Base.encode16()
+```
+
+```elixir
+defmodule Day05 do
+  def find_lowest(secret_key, num) do
+    input = secret_key <> Integer.to_string(num)
+
+    hash = :crypto.hash(:md5, input) |> Base.encode16()
+
+    case String.slice(hash, 0..4) == "00000" do
+      true -> num
+      _    -> find_lowest(secret_key, num+1)
+    end
+  end
+
+  def find_lowest(secret_key), do: find_lowest(secret_key, 1)
+
+  
+  def find_lowest_6(secret_key, num) do
+    input = secret_key <> Integer.to_string(num)
+
+    hash = :crypto.hash(:md5, input) |> Base.encode16()
+
+    case String.slice(hash, 0..5) == "000000" do
+      true -> num
+      _    -> find_lowest_6(secret_key, num+1)
+    end
+  end
+
+  def find_lowest_6(secret_key), do: find_lowest_6(secret_key, 1)
+end
+```
+
+```elixir
+Day05.find_lowest("abcdef")
+```
+
+```elixir
+Day05.find_lowest("pqrstuv")
+```
+
+```elixir
+Day05.find_lowest("iwrupvqb")
+```
+
+```elixir
+Day05.find_lowest_6("iwrupvqb")
+```

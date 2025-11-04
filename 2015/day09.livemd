@@ -1,0 +1,101 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day09 do
+  def distances(lines) do
+    lines
+    |> Enum.reduce(%{}, fn str, ds ->
+      [x, _, y, _, z] = String.split(str, " ", trim: true)
+      d = String.to_integer(z)
+      Map.put(ds, {x,y}, d) |> Map.put({y,x}, d)
+    end)
+  end
+
+  def unique_cities(lines) do
+    lines
+    |> Enum.reduce([], fn str, lst ->
+      [x, _, y, _, _] = String.split(str, " ", trim: true)
+      [x, y | lst]
+    end)
+    |> Enum.uniq()
+  end
+
+
+  def permutations([]), do: [[]]
+  
+  def permutations(city_list) do
+    for elem <- city_list, rest <- permutations(city_list -- [elem]), do: [elem | rest]
+  end
+
+  def remove_mirrors(path_list) do
+    Enum.reduce(path_list, [], fn path, acc ->
+      if !(Enum.reverse(path) in acc), do: [path | acc], else: acc
+    end)
+  end
+
+  def unique_permutations(city_list) do
+    city_list
+    |> permutations()
+    |> remove_mirrors()
+  end
+
+
+  def path_distance([start | rest] = path, distances) do
+    {_, d} =
+      Enum.reduce(rest, {start,0}, fn next, {last,sum} ->
+        {next, sum + Map.get(distances, {last, next})}
+        end)
+
+    {d, path}
+  end
+
+  def all_path_distances(paths, distances) do
+    paths
+    |> Enum.map(&path_distance(&1, distances))
+    |> Enum.sort_by(fn {d,_} -> d end)
+  end
+end
+```
+
+```elixir
+distances = Day09.distances(lines)
+```
+
+```elixir
+cities = Day09.unique_cities(lines)
+```
+
+```elixir
+unique_perms = Day09.unique_permutations(cities)
+```
+
+```elixir
+all_distances = Day09.all_path_distances(unique_perms, distances)
+```
+
+```elixir
+Enum.at(all_distances, 0)
+```
+
+```elixir
+Enum.at(all_distances, -1)
+```

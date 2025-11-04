@@ -1,0 +1,146 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+rules =
+  lines
+  |> Enum.map(&String.split(&1, " ", trim: true))
+  |> Enum.reduce(%{}, fn r, acc ->
+    x = Enum.at(r, 0)
+    y = String.slice(Enum.at(r,-1), 0..-2//1)
+
+    gl = if Enum.at(r, 2) == "gain", do: 1, else: -1
+    v = gl * String.to_integer(Enum.at(r,3))
+
+    Map.put(acc, {x,y}, v)
+  end)
+```
+
+```elixir
+people =
+  lines
+  |> Enum.map(&String.split(&1, " ", trim: true))
+  |> Enum.map(fn list -> Enum.at(list, 0) end)
+  |> Enum.uniq()
+```
+
+```elixir
+defmodule Day13 do
+  def permutations([]), do: [[]]
+  
+  def permutations(people_list) do
+    for elem <- people_list, rest <- permutations(people_list -- [elem]), do: [elem | rest]
+  end
+
+  def remove_mirrors(table_list) do
+    Enum.reduce(table_list, [], fn table, acc ->
+      if !(Enum.reverse(table) in acc), do: [table | acc], else: acc
+    end)
+  end
+
+  def unique_permutations(people_list) do
+    people_list
+    |> permutations()
+    |> remove_mirrors()
+  end
+
+
+  def pair_value(rules, x, y) do
+    case x == "me" or y == "me" do
+      true -> 0
+      _    -> Map.get(rules, {x,y}) + Map.get(rules, {y,x})
+    end
+  end
+
+  
+  def evaluate(_, [_ | []], v), do: v
+
+  def evaluate(rules, [x, y | rest], v_in) do
+    #IO.inspect({x,y})
+    v_out = v_in + pair_value(rules, x, y)
+
+    evaluate(rules, [y | rest], v_out)
+  end
+
+  def evaluate(rules, table), do: evaluate(rules, table, 0)
+
+  def evaluate_table(rules, table) do
+    first = Enum.at(table,  0)
+    last  = Enum.at(table, -1)
+
+    #IO.inspect({first, last}, label: "wrap")
+  
+    v_wrap = pair_value(rules, first, last)
+
+    v_mid = evaluate(rules, table)
+
+    {v_wrap + v_mid, table}
+  end
+
+  def evaluate_all_tables(rules, tables) do
+    Enum.map(tables, &evaluate_table(rules, &1))
+    |> Enum.sort_by(fn {v,_} -> v end)
+  end
+
+
+  def make_new_tables(left, [], list), do: [left ++ ["me"] | list]
+
+  def make_new_tables(left, [x | rest] = right, list) do
+    make_new_tables(left ++ [x], rest, [left ++ ["me"] ++ right | list])
+  end
+
+  def make_new_tables(table), do: make_new_tables([], table, [])
+end
+```
+
+```elixir
+Day13.make_new_tables(["Alice", "Bob", "Carol", "David"])
+```
+
+```elixir
+all_tables = Day13.unique_permutations(people)
+```
+
+```elixir
+Day13.evaluate_table(rules, ["Alice", "Bob", "Carol", "David"])
+```
+
+```elixir
+table_values = Day13.evaluate_all_tables(rules, all_tables)
+```
+
+```elixir
+Enum.at(table_values, -1)
+```
+
+```elixir
+new_all_tables =
+  all_tables
+  |> Enum.flat_map(&Day13.make_new_tables(&1))
+```
+
+```elixir
+new_table_values = Day13.evaluate_all_tables(rules, new_all_tables)
+```
+
+```elixir
+Enum.at(new_table_values, -1)
+```

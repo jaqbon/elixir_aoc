@@ -1,0 +1,76 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day14 do
+  def get_data(lines) do
+    Enum.reduce(lines, %{}, fn str, acc ->
+      tokens = String.split(str, " ", trim: true)
+      name = Enum.at(tokens, 0)
+      speed = String.to_integer(Enum.at(tokens, 3))
+      fly_time = String.to_integer(Enum.at(tokens, 6))
+      rest_time = String.to_integer(Enum.at(tokens, -2))
+      total_time = fly_time + rest_time
+      Map.put(acc, name, {speed, fly_time, rest_time, total_time})
+      end)
+  end
+
+  def distance_at_time({name, {speed, fly, _, total}}, t) do
+    num_totals = Integer.floor_div(t, total)
+    remainder = Integer.mod(t, total)
+
+    {speed * (num_totals * fly + min(remainder, fly)), name}
+  end
+
+  def run_race(deer, t) do
+    deer
+    |> Enum.map(&distance_at_time(&1, t))
+    |> Enum.sort_by(fn {d,_} -> d end, :desc)
+  end
+
+  def run_race_new_rules(deer, tmax) do
+    starting_scores = Enum.reduce(deer, %{}, fn {name,_}, acc -> Map.put(acc, name, 0) end)
+
+    1..tmax
+    |> Enum.reduce(starting_scores, fn t,scores ->
+      [{lead_distance, _} | _] = distances = run_race(deer, t)
+      Enum.reduce_while(distances, scores, fn {d, name}, acc ->
+        case d == lead_distance do
+          true -> {:cont, Map.put(acc, name, 1 + Map.get(acc, name))}
+          _    -> {:halt, acc}
+        end
+        end)
+    end)
+  end
+end
+```
+
+```elixir
+deer = Day14.get_data(lines)
+```
+
+```elixir
+Day14.run_race(deer, 2503)
+```
+
+```elixir
+Day14.run_race_new_rules(deer, 2503)
+```

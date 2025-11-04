@@ -1,0 +1,109 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+```
+
+```elixir
+defmodule Day05_part1 do
+  def has_3_vowels?(str) do
+    number_of_vowels =
+      String.split(str, "", trim: true)
+      |> Enum.reduce(0, fn c, n -> if String.contains?("aeiou", c), do: n+1, else: n end)
+
+  number_of_vowels >= 3
+  end
+
+  def has_double_letter?(str) do
+    [first | rest] = String.split(str, "", trim: true)
+
+    {_,result} =
+      rest
+      |> Enum.reduce_while({first, false}, fn c, {last,_} ->
+          if c == last, do: {:halt, {last,true}}, else: {:cont, {c,false}}
+          end)
+
+    result
+  end
+
+  def has_no_bad_strings?(str) do
+    bad_strings = ["ab", "cd", "pq", "xy"]
+
+    Enum.reduce_while(bad_strings, false, fn bad,_ ->
+      if String.contains?(str, bad), do: {:halt, false}, else: {:cont, true}
+    end)
+  end
+
+  def is_nice_string?(str) do
+    has_3_vowels?(str) and has_double_letter?(str) and has_no_bad_strings?(str)
+  end
+end
+```
+
+```elixir
+number_of_nice_strings_part1 =
+  lines
+  |> Enum.count(fn str -> Day05_part1.is_nice_string?(str) end)
+```
+
+```elixir
+defmodule Day05_part2 do
+  def has_pair_match?([_,_|[]]), do: false
+  def has_pair_match?([now, next | rest]) do
+    case Enum.member?(rest, now) do
+      true -> true
+      _    -> has_pair_match?([next | rest])
+    end
+  end
+
+  def has_matching_pairs?(str) do
+    pairs =
+      str
+      |> String.graphemes()
+      |> Stream.chunk_every(2, 1, :discard)
+      |> Enum.map(&Enum.join/1)
+      |> Enum.to_list()
+
+    has_pair_match?(pairs)
+  end
+
+  def has_gap_pair?([_,_|[]]), do: false
+  def has_gap_pair?([c1, c2, c3 | cs]) do
+    case c1 == c3 do
+      true -> true
+      _    -> has_gap_pair?([c2, c3 | cs])
+    end
+  end
+
+  def has_repeat_with_gap?(str) do
+    cs = String.graphemes(str)
+    has_gap_pair?(cs)
+  end
+
+  def is_nice_string?(str) do
+    has_matching_pairs?(str) and has_repeat_with_gap?(str)
+  end
+end
+```
+
+```elixir
+number_of_nice_strings_part2 =
+  lines
+  |> Enum.count(fn str -> Day05_part2.is_nice_string?(str) end)
+```

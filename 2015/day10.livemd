@@ -1,0 +1,79 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day10 do
+  def process([], {last, cnt}, new), do: Enum.reverse([last, cnt | new])
+
+  def process([next | rest], {last, cnt}, new) do
+    if next == last do
+      process(rest, {last, cnt+1}, new)
+    else
+      process(rest, {next, 1}, [last, cnt | new])
+    end
+  end
+
+  def make_list(input) do
+    input
+    |> String.split("", trim: true)
+    |> Enum.map(&String.to_integer(&1))
+  end
+
+  def process([next | rest]), do: process(rest, {next, 1}, [])
+
+  def make_number_string(list) do
+    Enum.reduce(list, "", fn x, s -> s <> Integer.to_string(x) end)
+  end
+end
+```
+
+```elixir
+"1"
+|> Day10.make_list()
+|> Day10.process()
+|> Day10.process()
+|> Day10.process()
+|> Day10.process()
+|> Day10.process()
+```
+
+```elixir
+1..5
+|> Enum.reduce([1], fn _,acc -> Day10.process(acc) end)
+|> Day10.make_number_string()
+```
+
+```elixir
+list =
+  "1113222113"
+  |> Day10.make_list()
+```
+
+```elixir
+final_list =
+  1..50
+  |> Enum.reduce(list, fn _,acc -> Day10.process(acc) end)
+  #|> Day10.make_number_string()
+```
+
+```elixir
+length(final_list)
+```

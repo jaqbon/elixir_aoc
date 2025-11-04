@@ -1,0 +1,138 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+nx = length(Enum.at(lines, 0))
+ny = length(lines)
+```
+
+```elixir
+defmodule Day18 do
+  @nx 100
+  @ny 100
+
+  @force_corners true
+
+  @offsets [{-1,-1},{0,-1},{1,-1},{-1,0},{1,0},{-1,1},{0,1},{1,1}]
+
+  def make_grid(lines) do
+    g =
+      for {line, y} <- Enum.with_index(lines),
+          {c, x} <- Enum.with_index(line),
+          into: %{} do
+        {{x, y}, c}
+      end
+
+    nx = length(Enum.at(lines, 0))
+    ny = length(lines)
+
+    {nx, ny, g}
+  end
+
+  def get_neighbors({x,y}), do: Enum.map(@offsets, fn {dx,dy} -> {x+dx,y+dy} end)
+
+
+  def force_corners(grid) do
+    grid
+    |> Map.replace!({0,0}, "#")
+    |> Map.replace!({@nx-1,0}, "#")
+    |> Map.replace!({0,@ny-1}, "#")
+    |> Map.replace!({@nx-1,@ny-1}, "#")
+  end
+
+
+  def update(grid, 0) do
+    case @force_corners do
+      true -> force_corners(grid)
+        _  ->grid
+    end
+  end
+  
+  def update(grid0, cnt) do
+
+    grid =
+      case @force_corners do
+        true -> force_corners(grid0)
+          _  ->grid0
+      end
+
+    num_neighbors_on =
+      Enum.reduce(grid, %{}, fn {{x,y}, _}, nno ->
+
+        neighbors = get_neighbors({x,y})
+        
+        num_on =
+          Enum.reduce(neighbors, 0, fn x1y1, sum ->
+            case Map.get(grid, x1y1) do
+              "#" -> sum + 1
+              _   -> sum
+            end
+          end)
+        
+        Map.put(nno, {x,y}, num_on)
+      end)
+
+    new_grid =
+    Enum.reduce(grid, %{}, fn {xy, z}, g ->
+      num_on = Map.get(num_neighbors_on, xy)
+
+      case z do
+        "#" ->  case num_on == 2 or num_on == 3 do
+                  true -> Map.put(g, xy, "#")
+                  _    -> Map.put(g, xy, ".")
+                end
+        "." ->  case num_on == 3 do
+                  true -> Map.put(g, xy, "#")
+                  _    -> Map.put(g, xy, ".")
+                end
+      end
+    end)
+
+    update(new_grid, cnt-1)
+  end
+
+
+  def display(grid, nx, ny) do
+    for y <- 0..(ny-1) do
+      row = for x <- 0..(nx-1), do: grid[{x,y}]
+      IO.write(List.to_string(row))
+      IO.puts("")
+    end
+  end
+end
+```
+
+```elixir
+{nx, ny, grid} = Day18.make_grid(lines)
+```
+
+```elixir
+grid_100 = Day18.update(grid, 100)
+```
+
+```elixir
+grid_100 |> Day18.display(nx, ny)
+```
+
+```elixir
+Enum.reduce(grid_100, 0, fn {_,z}, sum -> if z == "#", do: sum+1, else: sum end)
+```

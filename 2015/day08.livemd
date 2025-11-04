@@ -1,0 +1,114 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+gs = Enum.map(lines, &String.graphemes(&1))
+```
+
+```elixir
+defmodule Day08 do
+  def parse_graphemes([], cnts), do: cnts
+
+  #def parse_graphemes(["\n" | rest], {lit, mem}), do: parse_graphemes(rest, {lit, mem})
+
+  def parse_graphemes(["\\", "\\" | rest], {lit, mem}), do: parse_graphemes(rest, {lit+2, mem+1})
+
+  def parse_graphemes(["\\", "\"" | rest], {lit, mem}), do: parse_graphemes(rest, {lit+2, mem+1})
+
+  def parse_graphemes(["\\", "x", _,_ | rest], {lit, mem}), do: parse_graphemes(rest, {lit+4, mem+1})
+
+  def parse_graphemes(["\"" | rest], {lit, mem}), do: parse_graphemes(rest, {lit+1, mem})
+
+  def parse_graphemes([_ | rest], {lit, mem}), do: parse_graphemes(rest, {lit+1, mem+1})
+
+  def parse_graphemes(gs), do: parse_graphemes(gs, {0,0})
+
+
+  def get_char_counts(lines) do
+    {lit, mem} =
+
+      Enum.reduce(lines, {0,0}, fn line, {l,m} ->
+        gs = String.graphemes(line)
+ 
+        {l1, m1} = parse_graphemes(gs)
+
+        IO.inspect({l1,m1})
+
+
+        {l + l1, m + m1}
+  
+        end)
+    
+    {lit, mem, lit-mem}
+  end
+
+
+  def encode([], new_gs), do: Enum.reverse(new_gs)
+
+  def encode(["\\", "\\" | rest], new_gs), do: encode(rest, ["\\", "\\", "\\", "\\" | new_gs])
+
+  def encode(["\\", "\"" | rest], new_gs), do: encode(rest, ["\"", "\\", "\\", "\\" | new_gs])
+
+  def encode(["\\", "x", a,b | rest], new_gs), do: encode(rest, [b, a, "x", "\\", "\\" | new_gs])
+
+  def encode(["\"" | rest], new_gs), do: encode(rest, ["\"", "\\", "\"" | new_gs])
+
+  def encode([x | rest], new_gs), do: encode(rest, [x | new_gs])
+
+  def encode(gs), do: encode(gs, [])
+
+  def get_new_char_counts(lines) do
+    {lit, mem} =
+      Enum.reduce(lines, {0,0}, fn line, {l,m} ->
+        {l1,m1} =
+          line
+          |> String.graphemes()
+          |> encode()
+          |> parse_graphemes()
+
+        IO.inspect({l1,m1})
+
+
+        {l + l1, m + m1}
+  
+        end)
+    
+    {lit, mem, lit-mem}
+  end
+end
+```
+
+```elixir
+Day08.parse_graphemes(  ["\"", "d", "\\", "\\", "g", "k", "b", "q", "o", "\\", "\\", "f", "w", "u", "k", "y", "x", "a",
+   "b", "\\", "\"", "u", "\""])
+```
+
+```elixir
+Day08.get_char_counts(lines)
+```
+
+```elixir
+Enum.map(gs, &Day08.encode(&1))
+```
+
+```elixir
+Day08.get_new_char_counts(lines)
+```

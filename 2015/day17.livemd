@@ -1,0 +1,168 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+volumes =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+  |> Enum.sort()
+```
+
+```elixir
+defmodule Day17_Part1 do
+  def make_container_polynomials(volumes) do
+    Enum.map(volumes, fn n -> [{1,0}, {1,n}] end)
+  end
+
+  def multiply(p1, p2) do
+    for {c1,n1} <- p1, {c2,n2} <- p2 do
+      {c1 * c2, n1 + n2}
+    end
+
+    |> Enum.reduce(%{}, fn {c,n}, acc ->
+      case Map.get(acc, n) do
+        nil -> Map.put(acc, n, c)
+        c0  -> Map.replace(acc, n, c + c0)
+      end
+    end)
+
+    |> Enum.reduce([], fn {n,c}, p -> [{c,n} | p] end)
+    |> Enum.sort_by(fn {_,n} -> n end)
+  end
+
+  def make_polynomial([], p), do: p
+
+  def make_polynomial([p1 | ps], p2) do
+    make_polynomial(ps, multiply(p1, p2))
+  end
+
+  def make_polynomial(container_polynomials) do
+    make_polynomial(container_polynomials, [{1,0}])
+  end
+end
+```
+
+```elixir
+Day17_Part1.multiply([{1, 0}, {1, 7}], [{1, 0}, {1, 10}])
+```
+
+```elixir
+test_volumes = [5,5,10,15,20]
+```
+
+```elixir
+test_polynomials = Day17_Part1.make_container_polynomials(test_volumes)
+```
+
+```elixir
+Day17_Part1.make_polynomial(test_polynomials) |> Enum.filter(fn {_,n} -> n == 25 end)
+```
+
+```elixir
+container_polynomials = Day17_Part1.make_container_polynomials(volumes)
+```
+
+```elixir
+Day17_Part1.make_polynomial(container_polynomials) |> Enum.filter(fn {_,n} -> n == 150 end)
+```
+
+```elixir
+defmodule Day17_Part2 do
+  def make_container_polynomials(volumes) do
+    volumes
+    |> Enum.map(fn n -> [{1,0}, {1,n}] end)
+    |> Enum.zip(?a..?z)
+    |> Enum.map(fn {[{1, 0}, {1, n}], c} -> [{1, 0, [""]}, {1, n, [to_string([c])]}] end)
+  end
+
+  def multiply(p1, p2) do
+    for {c1,n1,ls1} <- p1, {c2,n2,ls2} <- p2 do
+
+      ls =
+        for l1 <- ls1, l2 <- ls2 do
+          l1 <> l2
+        end
+
+      {c1 * c2, n1 + n2, ls}
+    end
+
+    |> Enum.reduce(%{}, fn {c,n,l}, acc ->
+      case Map.get(acc, n) do
+        nil      -> Map.put(acc, n, {c,l})
+        {c0,l0}  -> Map.replace(acc, n, {c + c0, l ++ l0})
+      end
+    end)
+
+    |> Enum.reduce([], fn {n,{c,l}}, p -> [{c,n,l} | p] end)
+    |> Enum.sort_by(fn {_,n,_} -> n end)
+  end
+
+  def make_polynomial([], p), do: p
+
+  def make_polynomial([p1 | ps], p2) do
+    make_polynomial(ps, multiply(p1, p2))
+  end
+
+  def make_polynomial(container_polynomials) do
+    make_polynomial(container_polynomials, [{1,0,[""]}])
+  end
+end
+```
+
+```elixir
+test_polynomials_2 = Day17_Part2.make_container_polynomials(test_volumes)
+```
+
+```elixir
+Day17_Part2.multiply([{1, 0, [""]}, {1, 5, ["a"]}], [{1, 0, [""]}, {1, 5, ["b"]}])
+```
+
+```elixir
+[{_,_,test_used}] =
+  test_polynomials_2
+  |> Day17_Part2.make_polynomial()
+  |> Enum.filter(fn {_,n,_} -> n == 25 end)
+```
+
+```elixir
+test_used
+|> Enum.sort_by(&String.length(&1))
+```
+
+```elixir
+polynomials_2 = Day17_Part2.make_container_polynomials(volumes)
+```
+
+
+
+```elixir
+[{_,_,used}] =
+  polynomials_2
+  |> Day17_Part2.make_polynomial()
+  |> Enum.filter(fn {_,n,_} -> n == 150 end)
+```
+
+```elixir
+used
+|> Enum.sort_by(&String.length(&1))
+```
+
+```elixir
+used
+|> Enum.sort_by(&String.length(&1))
+|> Enum.filter(fn str -> String.length(str) == 4 end)
+|> Enum.count()
+```
