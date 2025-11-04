@@ -1,0 +1,54 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+diffs =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day01 do
+  def final_frequency(diffs) do
+    [0] ++ diffs
+    |> Enum.scan(fn x, sum -> x + sum end)
+  end
+
+  def find_repeat(diffs, [], freqs), do: find_repeat(diffs, diffs, freqs)
+
+  def find_repeat(diffs, [diff | rest_diffs], [last_freq | _]=freqs) do
+    new_freq = last_freq + diff
+
+    case Enum.member?(freqs, new_freq) do
+      true -> new_freq
+      false -> find_repeat(diffs, rest_diffs, [new_freq | freqs])
+    end
+  end
+  def find_repeat(diffs), do: find_repeat(diffs, diffs, [0])
+end
+```
+
+```elixir
+final = Day01.final_frequency(diffs)
+```
+
+```elixir
+List.last(final)
+```
+
+```elixir
+Day01.find_repeat(diffs)
+```

@@ -1,0 +1,103 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+# 9 players; last marble is worth 25 points
+# 10 players; last marble is worth 1618 points
+# 13 players; last marble is worth 7999 points
+# 17 players; last marble is worth 1104 points
+# 21 players; last marble is worth 6111 points
+# 30 players; last marble is worth 5807 points
+
+# 473 players; last marble is worth 70904 points   371284
+```
+
+```elixir
+[players, max_val] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1," ",trim: true))
+  |> List.flatten()
+  |> Enum.reduce([], fn str, list ->
+        case Integer.parse(str) do
+          :error -> list
+          {n,_}  -> [n | list]
+        end
+      end)
+  |> Enum.reverse()
+
+```
+
+```elixir
+test = [0,1,2,3,4,5]
+```
+
+```elixir
+List.pop_at(test, 3)
+```
+
+```elixir
+defmodule Day09 do
+  def insert(list, len, index, value) do
+    new_index = if index <= len, do: index, else: rem(index, len)
+
+    {List.insert_at(list, new_index, value), new_index}
+  end
+
+
+  def place_marbles(_, max_val, max_val, _,_,_, scores), do: scores
+
+  def place_marbles(players, max_val, last_val, current_index, current_len, marbles, scores) do
+    this_val = last_val + 1
+
+    #IO.inspect({last_val, marbles})
+
+    case rem(this_val, 23) do
+      0 ->
+        this_player = rem(this_val-1, players) + 1
+
+        remove_index = Integer.mod(current_index-7, current_len)
+        {remove_val, new_marbles} = List.pop_at(marbles, remove_index)
+
+        new_index = Integer.mod(remove_index, current_len-1)
+        new_scores = Map.put(scores, this_player, scores[this_player] + this_val + remove_val)
+
+        place_marbles(players, max_val, this_val, new_index, current_len-1, new_marbles, new_scores)
+      _ ->
+        {new_marbles, new_index} = insert(marbles, current_len, current_index+2, this_val)
+
+        place_marbles(players, max_val, this_val, new_index, current_len+1, new_marbles, scores)
+    end
+  end
+
+  def place_marbles(players, max_val) do
+    scores = 1..players |> Enum.reduce(%{}, fn p, s -> Map.put(s, p, 0) end)
+
+    place_marbles(players, max_val, 1, 1, 2, [0,1], scores)
+  end
+end
+```
+
+```elixir
+scores = Day09.place_marbles(players, max_val)
+```
+
+```elixir
+Enum.max_by(scores, fn {_,score} -> score end)
+```
+
+```elixir
+
+```

@@ -1,0 +1,286 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+"""
+Before: [3, 2, 1, 1]
+9 2 1 2
+After:  [3, 2, 2, 1]
+"""
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+#  |> Enum.map(&String.split(&1, [" ", "[", "]"], trim: true))
+#  |> Enum.map(fn list ->
+#        new_list =
+#          Enum.reduce(list, [], fn str,lst ->
+##              case Integer.parse(str) do
+#                :error -> lst
+#                {n,_}  -> [n | lst]
+#              end
+#            end)
+#          Enum.reverse(new_list)
+#        end)
+#  |> Enum.chunk_every(3)
+```
+
+```elixir
+defmodule Day16 do
+
+  def read_samples(lines, samples) do
+    next3str = Enum.take(lines, 3)
+
+    [str1,_,_] = next3str
+
+    case String.at(str1, 0) == "B" do
+      true ->
+        next3 =
+          next3str
+          |> Enum.map(&String.split(&1, [" ", "[", "]"], trim: true))
+          |> Enum.map(fn list ->
+                new_list =
+                  Enum.reduce(list, [], fn str,lst ->
+                      case Integer.parse(str) do
+                        :error -> lst
+                        {n,_}  -> [n | lst]
+                      end
+                    end)
+                  Enum.reverse(new_list)
+                end)
+        read_samples(Enum.drop(lines, 3), next3 ++ samples)
+      false ->
+        {Enum.chunk_every(samples, 3), lines}
+    end
+  end
+
+
+  def read_program(lines) do
+    lines
+    |> Enum.map(&String.split(&1, " ", trim: true))
+    |> Enum.map(fn list -> Enum.map(list, fn s -> String.to_integer(s) end) end)
+  end
+
+
+  def read_input(input) do
+    {samples, rest} =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n", trim: true)
+      |> read_samples([])
+
+    program = read_program(rest)
+
+    {samples, program}
+  end
+
+
+  def addr(regs, a, b, c), do: Map.put(regs, c, regs[a] + regs[b])
+  def addi(regs, a, b, c), do: Map.put(regs, c, regs[a] + b)
+
+  def mulr(regs, a, b, c), do: Map.put(regs, c, regs[a] * regs[b])
+  def muli(regs, a, b, c), do: Map.put(regs, c, regs[a] * b)
+
+  def banr(regs, a, b, c), do: Map.put(regs, c, Bitwise.band(regs[a], regs[b]))
+  def bani(regs, a, b, c), do: Map.put(regs, c, Bitwise.band(regs[a], b))
+
+  def borr(regs, a, b, c), do: Map.put(regs, c, Bitwise.bor(regs[a], regs[b]))
+  def bori(regs, a, b, c), do: Map.put(regs, c, Bitwise.bor(regs[a], b))
+
+  def setr(regs, a, _, c), do: Map.put(regs, c, regs[a])
+  def seti(regs, a, _, c), do: Map.put(regs, c, a)
+
+  def gtir(regs, a, b, c), do: Map.put(regs, c, (if regs[a] > regs[b], do: 1, else: 0))
+  def gtri(regs, a, b, c), do: Map.put(regs, c, (if regs[a] >       b, do: 1, else: 0))
+  def gtrr(regs, a, b, c), do: Map.put(regs, c, (if       a >       b, do: 1, else: 0))
+
+  def eqir(regs, a, b, c), do: Map.put(regs, c, (if regs[a] == regs[b], do: 1, else: 0))
+  def eqri(regs, a, b, c), do: Map.put(regs, c, (if regs[a] ==       b, do: 1, else: 0))
+  def eqrr(regs, a, b, c), do: Map.put(regs, c, (if       a ==       b, do: 1, else: 0))
+
+  def test_op([input, [op, a, b, c], output]) do
+    regs =
+      input
+      |> Enum.with_index()
+      |> Enum.reduce(%{}, fn {x,i},reg -> Map.put(reg, i, x) end)
+
+    [
+     addr(regs, a, b, c),
+     addi(regs, a, b, c),
+     mulr(regs, a, b, c),
+     muli(regs, a, b, c),
+     banr(regs, a, b, c),
+     bani(regs, a, b, c),
+     borr(regs, a, b, c),
+     bori(regs, a, b, c),
+     setr(regs, a, b, c),
+     seti(regs, a, b, c),
+     gtir(regs, a, b, c),
+     gtri(regs, a, b, c),
+     gtrr(regs, a, b, c),
+     eqir(regs, a, b, c),
+     eqri(regs, a, b, c),
+     eqrr(regs, a, b, c)
+    ]
+    |> Enum.with_index()
+    |> Enum.map(fn {map,index} ->
+          {index, op, Enum.reduce(3..0//-1, [], fn i,acc -> [map[i] | acc] end)}
+        end)
+    |> Enum.filter(fn {_,_,x} -> x == output end)
+  end
+
+  def test_inputs(samples) do
+    samples
+    |> Enum.map(fn sample -> test_op(sample) end)
+    |> Enum.count(fn list -> length(list) >= 3 end)
+  end
+
+  def find_possible(samples) do
+    samples
+    |> Enum.map(fn sample -> test_op(sample) end)
+    |> Enum.map(fn list ->
+          Enum.map(list, fn {index_op, test_op, _} ->
+              {test_op, index_op}
+            end)
+        end)
+    |> Enum.sort_by(fn list -> length(list) end)
+  end
+
+
+  def match_ops([], matched), do: matched
+
+  def match_ops(possible, matched) do
+    singles =
+      possible
+      |> Enum.filter(fn list -> length(list) == 1 end)
+      |> Enum.uniq()
+      |> List.flatten()
+
+    IO.inspect(singles)
+
+    new_matched = singles ++ matched
+
+    new_possible =
+      possible
+      |> Enum.filter(fn list -> length(list) > 1 end)
+      |> Enum.map(fn list ->
+            Enum.filter(list, fn {to,io} ->
+                Enum.reduce_while(singles, true, fn {top,iop},_ ->
+                    case to == top or io == iop do
+                      true  -> {:halt, false}
+                      false -> {:cont, true}
+                    end
+                  end)
+              end)
+          end)
+      |> Enum.filter(fn list -> length(list) > 0 end)
+      |> Enum.sort_by(fn list -> length(list) end)
+
+    match_ops(new_possible, new_matched)
+  end
+
+  def match_ops(lines), do: match_ops(find_possible(lines), [])
+
+
+  def make_matched_ops(matched) do
+    indexed =
+      %{}
+      |> Map.put( 0, &Day16.addr/4)
+      |> Map.put( 1, &Day16.addi/4)
+      |> Map.put( 2, &Day16.mulr/4)
+      |> Map.put( 3, &Day16.muli/4)
+      |> Map.put( 4, &Day16.banr/4)
+      |> Map.put( 5, &Day16.bani/4)
+      |> Map.put( 6, &Day16.borr/4)
+      |> Map.put( 7, &Day16.bori/4)
+      |> Map.put( 8, &Day16.setr/4)
+      |> Map.put( 9, &Day16.seti/4)
+      |> Map.put(10, &Day16.gtir/4)
+      |> Map.put(11, &Day16.gtri/4)
+      |> Map.put(12, &Day16.gtrr/4)
+      |> Map.put(13, &Day16.eqir/4)
+      |> Map.put(14, &Day16.eqri/4)
+      |> Map.put(15, &Day16.eqrr/4)
+
+    Enum.reduce(matched, %{}, fn {top, iop}, map -> Map.put(map, top, indexed[iop]) end)
+  end
+
+
+  def run(matched_ops, program) do
+    init_regs = 0..3 |> Enum.reduce(%{}, fn i,acc -> Map.put(acc,i,0) end)
+
+    program
+    |> Enum.reduce(init_regs, fn [op, a, b, c], regs ->
+          matched_ops[op].(regs, a, b, c)
+        end)
+  end
+end
+```
+
+```elixir
+{samples, program} = Day16.read_input(input)
+```
+
+```elixir
+#Day16.test_op([[3, 2, 1, 1], [9, 2, 1, 2], [3, 2, 2, 1]])
+```
+
+```elixir
+Day16.test_inputs(samples)
+```
+
+```elixir
+Day16.find_possible(samples)
+```
+
+```elixir
+matched = Day16.match_ops(samples)
+```
+
+```elixir
+    indexed =
+      %{}
+      |> Map.put( 0, &Day16.addr/4)
+      |> Map.put( 1, &Day16.addi/4)
+      |> Map.put( 2, &Day16.mulr/4)
+      |> Map.put( 3, &Day16.muli/4)
+      |> Map.put( 4, &Day16.banr/4)
+      |> Map.put( 5, &Day16.bani/4)
+      |> Map.put( 6, &Day16.borr/4)
+      |> Map.put( 7, &Day16.bori/4)
+      |> Map.put( 8, &Day16.setr/4)
+      |> Map.put( 9, &Day16.seti/4)
+      |> Map.put(10, &Day16.gtir/4)
+      |> Map.put(11, &Day16.gtri/4)
+      |> Map.put(12, &Day16.gtrr/4)
+      |> Map.put(13, &Day16.eqir/4)
+      |> Map.put(14, &Day16.eqri/4)
+      |> Map.put(15, &Day16.eqrr/4)
+
+```
+
+```elixir
+matched_ops = Day16.make_matched_ops(matched)
+```
+
+```elixir
+# 515
+```
+
+```elixir
+Day16.run(matched_ops, program)
+```

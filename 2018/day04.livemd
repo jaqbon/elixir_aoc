@@ -1,0 +1,150 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+"""
+[1518-11-01 00:00] Guard #10 begins shift
+[1518-11-01 00:05] falls asleep
+[1518-11-01 00:25] wakes up
+[1518-11-01 00:30] falls asleep
+[1518-11-01 00:55] wakes up
+[1518-11-01 23:58] Guard #99 begins shift
+[1518-11-02 00:40] falls asleep
+[1518-11-02 00:50] wakes up
+[1518-11-03 00:05] Guard #10 begins shift
+[1518-11-03 00:24] falls asleep
+[1518-11-03 00:29] wakes up
+[1518-11-04 00:02] Guard #99 begins shift
+[1518-11-04 00:36] falls asleep
+[1518-11-04 00:46] wakes up
+[1518-11-05 00:03] Guard #99 begins shift
+[1518-11-05 00:45] falls asleep
+[1518-11-05 00:55] wakes up
+"""
+```
+
+```elixir
+sorted_input =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1," ",trim: true))
+  |> Enum.map(fn [date_str, time_str | rest] ->
+        [yr, mo, da] = String.split(date_str, ["[","-"], trim: true)
+        [hr, mi] = String.split(time_str, [":","]"], trim: true)
+        year = String.to_integer(yr)
+        month = String.to_integer(mo)
+        day = String.to_integer(da)
+        hour = String.to_integer(hr)
+        minute = String.to_integer(mi)
+        [10000*year + 100*month + day, 100*hour+minute | rest]
+      end)
+  |> Enum.sort_by(fn [date, time | _] -> 10000*date + time end)
+```
+
+```elixir
+defmodule Day04 do
+  def get_guard_sleep_times([], _, map), do: map
+
+  def get_guard_sleep_times([[_,_, "Guard", id |_] | rest], _, map) do
+    get_guard_sleep_times(rest, {id, nil, nil}, map)
+  end
+
+  def get_guard_sleep_times([[_, time, "falls", _] | rest], {id,_,_}, map) do
+    get_guard_sleep_times(rest, {id,time,nil}, map)
+  end
+
+  def get_guard_sleep_times([[_, time, "wakes", _] | rest], {id,start,_}, map) do
+    old_sleep_times = map[id]
+
+    new_map =
+      case old_sleep_times do
+        nil -> Map.put(map, id, [{start, time-1}])
+        list -> Map.replace!(map, id, [{start, time-1} | list])
+      end
+
+    get_guard_sleep_times(rest, {id,nil,nil}, new_map)
+  end
+  
+  def get_guard_sleep_times(sorted_input), do: get_guard_sleep_times(sorted_input, nil, %{})
+
+
+  def get_biggest_sleeper(map) do
+    map
+    |> Enum.map(fn {id, sleep_list} ->
+          total_sleep =
+            sleep_list
+            |> Enum.reduce(0, fn {first, last}, total -> total + last - first + 1 end)
+          {id, total_sleep}
+        end)
+    |> Enum.max_by(fn {_, time} -> time end)
+  end
+
+
+  def make_guard_histogram(map, id) do
+    map[id]
+    |> Enum.reduce(%{}, fn {start, finish}, hist ->
+          Enum.reduce(start..finish, hist, fn m, h ->
+            case h[m] do
+              nil -> Map.put(h, m, 1)
+              n   -> Map.put(h, m, n+1)
+            end
+          end)
+        end)
+  end
+
+
+  def get_guards_max_minute(map, id) do
+    make_guard_histogram(map, id)
+    |> Enum.max_by(fn {_, count} -> count end)
+  end
+
+
+  def get_overall_max_minute(map) do
+    map
+    |> Enum.map(fn {id, _} -> {id, make_guard_histogram(map, id)} end)
+    |> Enum.map(fn {id, hist} -> {id, get_guards_max_minute(map, id)} end)
+    |> Enum.max_by(fn {_,{_,min}} -> min end)
+  end
+
+
+  def id_to_number(id_str) do
+    String.to_integer(String.slice(id_str,1,1000))
+  end
+end
+```
+
+```elixir
+guard_sleep_intervals = Day04.get_guard_sleep_times(sorted_input)
+```
+
+```elixir
+{biggest_sleeper_id,_} = Day04.get_biggest_sleeper(guard_sleep_intervals)
+```
+
+```elixir
+{biggest_minute,_} = Day04.get_guards_max_minute(guard_sleep_intervals, biggest_sleeper_id)
+```
+
+```elixir
+answer1 = Day04.id_to_number(biggest_sleeper_id) * biggest_minute
+```
+
+```elixir
+{max_minute_id, {max_minute,_}} = Day04.get_overall_max_minute(guard_sleep_intervals)
+```
+
+```elixir
+answer2 = Day04.id_to_number(max_minute_id) * max_minute
+```

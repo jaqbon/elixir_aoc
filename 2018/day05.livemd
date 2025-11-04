@@ -1,0 +1,91 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[str] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day05 do
+  def test_final(list, reacted?) do
+    case reacted? do
+      true  -> react(list, [], false)
+      false -> to_string(list)
+    end
+  end
+
+
+  def react([], list, reacted?) do
+    test_final(list, reacted?)
+  end
+
+  def react([c], list, reacted?) do
+    test_final(Enum.reverse([c | list]), reacted?)
+  end
+
+  def react([c1, c2 | rest], list, reacted?) do
+    case abs(c1-c2) do
+      32 -> react(rest, list, true)
+      _  -> react([c2 | rest], [c1 | list], reacted?)
+    end
+  end
+
+  def react(str), do: react(to_charlist(str), [], false)
+
+
+  def omit([], _, list), do: to_string(Enum.reverse(list))
+
+  def omit([c1 | rest], c, list) do
+    case c1 == c or c1 == c-32 do
+      true  -> omit(rest, c, list)
+      false -> omit(rest, c, [c1 | list])
+    end
+  end
+
+  def omit(str, c), do: omit(to_charlist(str), c, [])
+
+
+  def best_react(str) do
+    ?a..?z
+    |> Enum.map(fn c ->
+          final = react(omit(str,c))
+          {to_string([c]), final, String.length(final)}
+        end)
+    |> Enum.min_by(fn {_,_,len} -> len end)
+  end
+end
+```
+
+```elixir
+str
+```
+
+```elixir
+# dabCBAcaDA
+```
+
+```elixir
+final = Day05.react(str)
+```
+
+```elixir
+String.length(final)
+```
+
+```elixir
+Day05.best_react(str)
+```

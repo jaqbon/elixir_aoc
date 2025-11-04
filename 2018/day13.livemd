@@ -1,0 +1,307 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+"""
+|
+v
+|
+|
+|
+^
+|
+"""
+```
+
+```elixir
+"""
+/->-\        
+|   |  /----\
+| /-+--+-\  |
+| | |  | v  |
+\-+-/  \-+--/
+  \------/   
+"""
+```
+
+```elixir
+"""
+/>-<\  
+|   |  
+| /<+-\
+| | | v
+\>+</ |
+  |   ^
+  \<->/
+"""
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day13_Part1 do
+  def char_dir(c) do
+    case c do
+      ">" -> 0
+      "v" -> 1
+      "<" -> 2
+      "^" -> 3
+    end
+  end
+
+
+  def make_grid(lines) do
+    grid_size = {length(lines), String.length(Enum.at(lines,0))}
+
+    {grid, carts} =
+      lines
+      |> Enum.with_index()
+      |> Enum.reduce({%{},[]}, fn {row_str, y}, {grid0,carts0} ->
+            row_str
+            |> String.split("", trim: true)
+            |> Enum.with_index()
+            |> Enum.reduce({grid0,carts0}, fn {c, x}, {grid1,carts1} ->
+                  case Enum.member?(["<",">","^","v"], c) do
+                    true ->
+                      c0 = (if c == "<" or c == ">", do: "-", else: "|")
+                      {Map.put(grid1, {x,y}, c0), [{x,y,char_dir(c), -1} | carts1]}
+                    false ->
+                      case c do
+                        " " -> {grid1, carts1}
+                        _   -> {Map.put(grid1, {x,y}, c), carts1}
+                      end
+                  end
+                end)
+          end)
+
+    {grid, grid_size, carts}
+  end
+
+
+  def get_new_pos(x, y, dir) do
+    case dir do
+      0 -> {x+1,y}
+      1 -> {x,y+1}
+      2 -> {x-1,y}
+      3 -> {x,y-1}
+    end
+  end
+
+
+  def move(grid, {x, y, dir, turn}) do
+    new_pos = get_new_pos(x, y, dir)
+
+    {new_dir, new_turn} =
+      case grid[new_pos] do
+        "+" -> {Integer.mod(dir + turn, 4), Integer.mod(turn + 2, 3)-1}
+
+        "/"  -> {3-dir, turn}
+        "\\" -> {(if dir < 2, do: 1-dir, else: 5-dir), turn}
+
+        _    ->
+          {dir, turn}
+      end
+
+    {new_x,new_y} = new_pos
+
+    {new_x, new_y, new_dir, new_turn}
+  end
+
+
+  def collision?([], _), do: false
+
+  def collision?([{x,y,_,_} | _], {x,y,_,_}), do: true
+
+  def collision?([_ | rest], quad), do: collision?(rest, quad)
+  
+
+  def tick(grid, {_,cols}, carts) do
+    sorted_carts = Enum.sort_by(carts, fn {x,y,_,_} -> y*cols + x end)
+    #IO.inspect(sorted_carts)
+    num_carts = length(sorted_carts)
+
+    0..(num_carts-1)
+    |> Enum.reduce_while(sorted_carts, fn index, new_carts ->
+          new_quad = move(grid, Enum.at(new_carts, index))
+          other_carts = List.delete_at(new_carts, index)
+          case collision?(other_carts, new_quad) do
+            true  ->
+              {:halt, new_quad}
+            false ->
+              {:cont, List.insert_at(other_carts, index, new_quad)}
+          end
+        end)
+  end
+
+
+  def first_crash(grid, grid_size, carts) do
+    case tick(grid, grid_size, carts) do
+      {x,y,_,_} -> {x,y}
+      new_carts    -> first_crash(grid, grid_size, new_carts)
+    end
+  end
+end
+```
+
+```elixir
+{grid, grid_size, carts} = Day13_Part1.make_grid(lines)
+```
+
+```elixir
+Day13_Part1.first_crash(grid, grid_size, carts)
+```
+
+```elixir
+defmodule Day13_Part2 do
+  def char_dir(c) do
+    case c do
+      ">" -> 0
+      "v" -> 1
+      "<" -> 2
+      "^" -> 3
+    end
+  end
+
+
+  def make_grid(lines) do
+    grid_size = {length(lines), String.length(Enum.at(lines,0))}
+
+    {grid, carts} =
+      lines
+      |> Enum.with_index()
+      |> Enum.reduce({%{},[]}, fn {row_str, y}, {grid0,carts0} ->
+            row_str
+            |> String.split("", trim: true)
+            |> Enum.with_index()
+            |> Enum.reduce({grid0,carts0}, fn {c, x}, {grid1,carts1} ->
+                  case Enum.member?(["<",">","^","v"], c) do
+                    true ->
+                      c0 = (if c == "<" or c == ">", do: "-", else: "|")
+                      {Map.put(grid1, {x,y}, c0), [{x,y,char_dir(c), -1} | carts1]}
+                    false ->
+                      case c do
+                        " " -> {grid1, carts1}
+                        _   -> {Map.put(grid1, {x,y}, c), carts1}
+                      end
+                  end
+                end)
+          end)
+
+    {grid, grid_size, carts}
+  end
+
+
+  def get_new_pos(x, y, dir) do
+    case dir do
+      0 -> {x+1,y}
+      1 -> {x,y+1}
+      2 -> {x-1,y}
+      3 -> {x,y-1}
+    end
+  end
+
+
+  def move(grid, {x, y, dir, turn}) do
+    new_pos = get_new_pos(x, y, dir)
+
+    {new_dir, new_turn} =
+      case grid[new_pos] do
+        "+" -> {Integer.mod(dir + turn, 4), Integer.mod(turn + 2, 3)-1}
+
+        "/"  -> {3-dir, turn}
+        "\\" -> {(if dir < 2, do: 1-dir, else: 5-dir), turn}
+
+        _    ->
+          {dir, turn}
+      end
+
+    {new_x,new_y} = new_pos
+
+    {new_x, new_y, new_dir, new_turn}
+  end
+
+
+  def collision?(_, []), do: false
+
+  def collision?({x,y,_,_}, [{x,y,d,t} | _]) do
+    #IO.inspect({x,y}, label: "collision")
+    {true, {x,y,d,t}}
+  end
+
+   def collision?(cart1, [_ | rest]), do: collision?(cart1, rest)
+
+  def collision?(cart, list), do: collision?(cart, list)
+
+
+  def remove_wrecks(_, [], all_carts), do: all_carts
+
+  # test cart1 against rest1
+  # good is those like cart1 that have passed
+  def remove_wrecks(grid, [cart1 | rest1], all_carts) do
+    test_carts = Enum.filter(all_carts, fn cart -> cart != cart1 end)
+
+    new_cart1 = move(grid, cart1)
+
+    #IO.inspect({new_cart1, test_carts})
+
+    {new_rest1, new_all_carts} =
+      case collision?(new_cart1, test_carts) do
+        {true, cart2} ->
+          nr1 = Enum.filter(rest1, fn cart -> cart != cart2 end)
+          nac = Enum.filter(all_carts, fn cart -> not (cart == cart1 or cart == cart2) end)
+          {nr1,nac}
+        false ->
+          {rest1, [new_cart1 | test_carts]}
+          
+      end
+
+    remove_wrecks(grid, new_rest1, new_all_carts)
+  end
+
+  def remove_wrecks(grid, carts), do: remove_wrecks(grid, carts, carts)
+
+
+  def tick(grid, {_,cols}, carts) do
+    sorted_carts = Enum.sort_by(carts, fn {x,y,_,_} -> y*cols + x end)
+
+    #IO.inspect(sorted_carts)
+
+    remaining_carts = remove_wrecks(grid, sorted_carts)
+
+    case length(remaining_carts) do
+      1 ->
+        [cart] = remaining_carts
+        cart
+      _ -> remaining_carts
+    end
+  end
+
+
+  def last_cart(grid, grid_size, carts) do
+    case tick(grid, grid_size, carts) do
+      {x,y,_,_} -> {x,y}
+      new_carts -> last_cart(grid, grid_size, new_carts)
+    end
+  end
+end
+```
+
+```elixir
+Day13_Part2.last_cart(grid, grid_size, carts)
+```

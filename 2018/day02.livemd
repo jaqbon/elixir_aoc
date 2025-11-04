@@ -1,0 +1,133 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#abcdef
+#bababc
+#abbcde
+#abcccd
+#aabcdd
+#abcdee
+#ababab
+```
+
+```elixir
+#abcde
+#fghij
+#klmno
+#pqrst
+#fguij
+#axcye
+#wvxyz
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day02 do
+  def process(lines) do
+    Enum.reduce(lines, {0,0}, fn str, {single_2s, single_3s} ->
+      num_2s_and_3s =
+        str
+        #|> IO.inspect()
+        |> String.split("", trim: true)
+        |> Enum.sort()
+        |> Enum.reduce(%{}, fn c,map ->
+              case map[c] do
+                nil -> Map.put(map, c, 1)
+                cnt -> Map.replace!(map, c, cnt+1)
+              end
+            end)
+        |> Enum.reduce({0,0}, fn {_,n}, {n2, n3} ->
+              case n do
+                2 -> {n2+1,n3}
+                3 -> {n2,n3+1}
+                _ -> {n2,n3}
+              end
+            end)
+        #|> IO.inspect()
+
+      case num_2s_and_3s do
+        {0,0} -> {single_2s, single_3s}
+        {_,0} -> {single_2s + 1, single_3s}
+        {0,_} -> {single_2s, single_3s + 1}
+        {_,_} -> {single_2s + 1, single_3s + 1}
+      end
+    end)
+  end
+
+
+  def compare([],[], 1, common), do: Enum.reverse(common)
+
+  def compare([c1 | rest1], [c2 | rest2], cnt, common) do
+    {new_cnt, new_common} =
+      case c1 == c2 do
+        true  -> {cnt, [c1 | common]}
+        false -> {cnt+1, common}
+      end
+
+    case new_cnt do
+      0 -> compare(rest1, rest2, 0, new_common)
+      1 -> compare(rest1, rest2, 1, new_common)
+      _ -> false
+    end
+  end
+
+  def compare(list1, list2) do
+    #IO.inspect({list1,list2})
+    compare(list1, list2, 0, [])
+  end
+
+
+  def compare_all([list1 | rest], lists) do
+    result =
+      Enum.reduce_while(lists, false, fn list2,_ ->
+        case compare(list1, list2) do
+          false -> {:cont, false}
+          common -> {:halt, common}
+        end
+      end)
+
+    case result do
+      false -> compare_all(rest, Enum.drop(rest, 1))
+      common -> common
+    end
+  end
+
+
+
+  def find_correct_ids(lines) do
+    lists = Enum.map(lines, &String.graphemes(&1))
+
+    compare_all(lists, Enum.drop(lists, 1)) |> to_string()
+  end
+end
+```
+
+```elixir
+{num_2s, num_3s} = Day02.process(lines)
+```
+
+```elixir
+num_2s * num_3s
+```
+
+```elixir
+Day02.find_correct_ids(lines)
+```

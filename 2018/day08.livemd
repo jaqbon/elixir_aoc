@@ -1,0 +1,196 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+list =
+  input
+  |> Kino.Input.read()
+  |> String.split([" ","\n"], trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day08_Part1 do
+  # done, return meta list
+  def read_next([], _, [], meta_list, node_count) do
+    IO.inspect(node_count)
+    Enum.reverse(meta_list)
+  end
+
+  # no more nodes expected, read the remaining meta
+  def read_next(list,
+                next_node,
+                [{:meta, num_meta} | rest_stack],
+                meta_list,
+                node_count) do
+    new_list = Enum.drop(list, num_meta)
+    new_meta = Enum.take(list, num_meta) ++ meta_list
+
+    read_next(new_list, next_node, rest_stack, new_meta, node_count)
+  end
+
+
+
+  # next node has no children, read its meta immediately
+  def read_next([0, num_meta | rest_list],
+                next_node,
+                [{:node, _num} | rest_stack],
+                meta,
+                node_count) do
+    new_list = Enum.drop(rest_list, num_meta)
+    new_meta = Enum.take(rest_list, num_meta) ++ meta
+    
+    read_next(new_list, next_node, rest_stack, new_meta, node_count+1)
+  end
+
+  # next node has children, its meta will be read later
+  def read_next([num_child, num_meta | rest_list],
+                next_node,
+                [{:node, _num} | rest_stack],
+                meta,
+                node_count) do
+    new_nodes =
+      next_node..(next_node+num_child-1)
+      |> Enum.map(fn node -> {:node, node} end)
+
+    new_stack = new_nodes ++ [{:meta, num_meta}] ++ rest_stack
+
+    read_next(rest_list, next_node+num_child, new_stack, meta, node_count+1)
+  end
+
+  def read_meta(list), do: read_next(list, 1, [{:node, 0}], [], 0)
+end
+```
+
+```elixir
+# 1+1+2+10+11+12+2+99=138
+```
+
+```elixir
+meta_1 = Day08_Part1.read_meta(list)
+```
+
+```elixir
+Enum.sum(meta_1)
+```
+
+```elixir
+defmodule Day08_Part2 do
+  # done, return meta list
+  def read_next([], _, [], meta, map), do: {Enum.reverse(meta), map}
+
+  # no more nodes expected, read the remaining meta
+  def read_next(list,
+                next_node,
+                [{:meta, node_num, num_meta} | rest_stack],
+                meta,
+                map) do
+    new_list = Enum.drop(list, num_meta)
+
+    this_meta = Enum.take(list, num_meta)
+
+    new_meta = this_meta ++ meta
+
+    child_ids = map[node_num]
+
+    new_map = Map.replace!(map, node_num, {child_ids, this_meta})
+
+    read_next(new_list, next_node, rest_stack, new_meta, new_map)
+  end
+
+
+
+  # next node has no children, read its meta immediately
+  def read_next([0, num_meta | rest_list],
+                next_node,
+                [{:node, node_num} | rest_stack],
+                meta,
+                map) do
+    new_list = Enum.drop(rest_list, num_meta)
+    new_meta = Enum.take(rest_list, num_meta) ++ meta
+
+    # for node without children, map holds the node's value
+    new_map = Map.put(map, node_num, Enum.sum(new_meta))
+    
+    read_next(new_list, next_node, rest_stack, new_meta, new_map)
+  end
+
+  # next node has children, its meta will be read later
+  def read_next([num_child, num_meta | rest_list],
+                next_node,
+                [{:node, node_num} | rest_stack],
+                meta,
+                map) do
+    new_nodes =
+      next_node..(next_node+num_child-1)
+      |> Enum.map(fn node -> {:node, node} end)
+
+    new_stack = new_nodes ++ [{:meta, node_num, num_meta}] ++ rest_stack
+
+    # for node with children, map holds range of node ids and a space for future meta
+    new_map = Map.put(map, node_num, {next_node..(next_node+num_child-1), nil})
+
+    read_next(rest_list, next_node+num_child, new_stack, meta, new_map)
+  end
+
+  def read_meta(list), do: read_next(list, 1, [{:node, 0}], [], %{})
+
+
+  def update_map_with_node_values(map, node_id) do
+    case map[node_id] do
+      {{child_ids, saved_value}, meta} ->
+          case saved_value do
+            nil ->
+              {new_map, node_id_value} =
+                meta
+                |> Enum.filter(fn x -> x != 0 end)
+                |> Enum.reduce({map,0}, fn index, {acc_map, sum} ->
+                      case Enum.at(child_ids, index-1) do
+                        nil ->
+                          {acc_map, sum}
+                        id  ->
+                          {tmp_map, id_value} = update_map_with_node_values(acc_map, id)
+                          {tmp_map, sum + id_value}
+                      end
+                    end)
+              {Map.replace!(new_map, node_id, {{child_ids, node_id_value}, meta}), node_id_value}
+          _ ->
+            {map, saved_value}
+          end
+
+      value ->
+        {map, value}
+    end
+  end
+
+  def update_map_with_node_values(map), do: update_map_with_node_values(map, 0)
+
+end
+```
+
+```elixir
+{meta_2, map} = Day08_Part2.read_meta(list)
+```
+
+```elixir
+{final_map,_} = Day08_Part2.update_map_with_node_values(map)
+```
+
+```elixir
+final_map[0]
+```
+
+```elixir
+# 9072158
+```
