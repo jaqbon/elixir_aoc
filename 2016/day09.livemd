@@ -1,0 +1,135 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[line] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day09_Part1 do
+  def copy_text(text, sz, cnt, list) do
+    reversed_block =
+      text
+      |> Enum.take(sz)
+      |> Enum.reverse()
+
+    reversed_copies =
+      1..cnt
+      |> Enum.reduce([], fn _, rcps -> reversed_block ++ rcps end)
+
+    decompress(Enum.drop(text, sz), reversed_copies ++ list)
+  end
+
+
+  def read_marker_cnt([")" | rest], sz, cnt_str, list) do
+    copy_text(rest, sz, String.to_integer(cnt_str), list)
+  end
+
+  def read_marker_cnt([c | rest], sz, cnt_str, list) do
+    read_marker_cnt(rest, sz, cnt_str <> c, list)
+  end
+
+
+  def read_marker_sz(["x" | rest], sz_str, list) do
+    read_marker_cnt(rest, String.to_integer(sz_str), "", list)
+  end
+
+  def read_marker_sz([c | rest], sz_str, list) do
+    read_marker_sz(rest, sz_str <> c, list)
+  end
+
+
+  def decompress([], list), do: Enum.reverse(list) |> to_string()
+
+  def decompress(["(" | rest], list), do: read_marker_sz(rest, "", list)
+
+  def decompress([c | rest], list), do: decompress(rest, [c | list])
+
+  def decompress(line), do: decompress(String.graphemes(line), [])
+end
+```
+
+```elixir
+Day09_Part1.decompress(line) |> String.length()
+```
+
+```elixir
+defmodule Day09_Part2 do
+  def read_marker_cnt([")" | rest], sz, cnt_str) do
+    {{sz, String.to_integer(cnt_str)}, rest}
+  end
+
+  def read_marker_cnt([c | rest], sz, cnt_str) do
+    read_marker_cnt(rest, sz, cnt_str <> c)
+  end
+
+
+  def read_marker_sz(["x" | rest], sz_str) do
+    read_marker_cnt(rest, String.to_integer(sz_str), "")
+  end
+
+  def read_marker_sz([c | rest], sz_str) do
+    read_marker_sz(rest, sz_str <> c)
+  end
+
+  def read_marker(text), do: read_marker_sz(text, "")
+
+
+  def decompress([], stack, size), do: (if size > 0, do: [size | stack], else: stack)
+
+  def decompress(["(" | rest], stack, size) do
+    {marker, new_rest} = read_marker(rest)
+
+    new_stack =
+      case size > 0 do
+        true  -> [marker, size | stack]
+        false -> [marker | stack]
+      end
+
+    decompress(new_rest, new_stack, 0)
+  end
+
+  def decompress([_c | rest], stack, size), do: decompress(rest, stack, size+1)
+
+  def decompress(line), do: decompress(String.graphemes(line), [], 0)
+
+
+  def evaluate_stack([], size), do: size
+
+  def evaluate_stack([{sz,cnt} | rest], size), do: evaluate_stack(rest, (size - sz) + cnt*sz)
+
+  def evaluate_stack([sz | rest], size), do: evaluate_stack(rest, size + sz)
+  
+  def evaluate_stack(stack), do: evaluate_stack(stack, 0)
+end
+```
+
+```elixir
+line
+```
+
+```elixir
+stack = Day09_Part2.decompress(line)
+```
+
+```elixir
+Day09_Part2.evaluate_stack(stack)
+```
+
+```elixir
+String.length("XABCABCABCABCABCABCY")
+```

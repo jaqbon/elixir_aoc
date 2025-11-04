@@ -1,0 +1,145 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+instructions =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1,"",trim: true))
+```
+
+```elixir
+defmodule Day02_Part1 do
+  @step %{"U" => {0,-1}, "D" => {0,1}, "L" => {-1,0}, "R" => {1,0}}
+
+  def make_keypad() do
+    for x <- 1..3, y <- 1..3, into: %{} do
+      {{x,y}, to_string(x + 3*(y-1))}
+    end
+  end
+
+  def make_positions(keypad) do
+    Enum.reduce(keypad, %{}, fn {pos, key}, acc -> Map.put(acc, key, pos) end)
+  end
+
+  def move([], _, position), do: position
+
+  def move([direction | rest], keypad, {x,y} = position) do
+    {dx,dy} = @step[direction]
+
+    new_position = {x+dx, y+dy}
+
+    case keypad[new_position] do
+      nil -> move(rest, keypad, position)
+      _   -> move(rest, keypad, new_position)
+    end
+  end
+
+  def make_code([], _, _, code), do: code
+
+  def make_code([instruction | rest], keypad, position, code) do
+    new_position = move(instruction, keypad, position)
+
+    make_code(rest, keypad, new_position, code <> keypad[new_position])
+  end
+
+  def make_code(instructions) do
+    keypad = make_keypad()
+    positions = make_positions(keypad)
+
+    make_code(instructions, keypad, positions["5"], "")
+  end
+end
+```
+
+```elixir
+keypad = Day02_Part1.make_keypad()
+```
+
+```elixir
+Day02_Part1.make_positions(keypad)
+```
+
+```elixir
+Day02_Part1.make_code(instructions)
+```
+
+```elixir
+defmodule Day02_Part2 do
+  @step %{"U" => {0,-1}, "D" => {0,1}, "L" => {-1,0}, "R" => {1,0}}
+
+
+  def make_keypad() do
+    %{}
+    |> Map.put({ 0, -2}, "1")
+    |> Map.put({-1, -1}, "2")
+    |> Map.put({ 0, -1}, "3")
+    |> Map.put({ 1, -1}, "4")
+    |> Map.put({-2,  0}, "5")
+    |> Map.put({-1,  0}, "6")
+    |> Map.put({ 0,  0}, "7")
+    |> Map.put({ 1,  0}, "8")
+    |> Map.put({ 2,  0}, "9")
+    |> Map.put({-1,  1}, "A")
+    |> Map.put({ 0,  1}, "B")
+    |> Map.put({ 1,  1}, "C")
+    |> Map.put({ 0,  2}, "D")
+  end
+
+  def make_positions(keypad) do
+    Enum.reduce(keypad, %{}, fn {pos, key}, acc -> Map.put(acc, key, pos) end)
+  end
+
+  def move([], _, position), do: position
+
+  def move([direction | rest], keypad, {x,y} = position) do
+    {dx,dy} = @step[direction]
+
+    new_position = {x+dx, y+dy}
+
+    case keypad[new_position] do
+      nil -> move(rest, keypad, position)
+      _   -> move(rest, keypad, new_position)
+    end
+  end
+
+  def make_code([], _, _, code), do: code
+
+  def make_code([instruction | rest], keypad, position, code) do
+    new_position = move(instruction, keypad, position)
+
+    make_code(rest, keypad, new_position, code <> keypad[new_position])
+  end
+
+  def make_code(instructions) do
+    keypad = make_keypad()
+    positions = make_positions(keypad)
+
+    make_code(instructions, keypad, positions["5"], "")
+  end
+end
+```
+
+```elixir
+keypad = Day02_Part2.make_keypad()
+```
+
+```elixir
+Day02_Part2.make_positions(keypad)
+```
+
+```elixir
+Day02_Part2.make_code(instructions)
+```

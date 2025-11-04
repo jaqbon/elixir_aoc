@@ -1,0 +1,82 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[line] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+steps =
+  line
+  |> String.split(", ", trim: true)
+  |> Enum.map(&String.split_at(&1, 1))
+  |> Enum.map(fn {dir, sz} -> {dir, String.to_integer(sz)} end)
+```
+
+```elixir
+defmodule Day01 do
+  def take_steps([], _, track), do: track
+
+  def take_steps([{rot, sz} | rest], {dx,dy}, [{x,y} | _] = track) do
+    {new_dx, new_dy} =
+      case rot do
+        "R" -> {dy, -dx}
+        "L" -> {-dy, dx}
+      end
+
+    fine_steps = for i <- sz..1//-1, do: {x+new_dx*i, y+new_dy*i}
+
+    take_steps(rest, {new_dx, new_dy}, fine_steps ++ track)
+  end
+
+  def take_steps(steps), do: take_steps(steps, {0,1}, [{0,0}])
+
+  def find_first_revisit(front, [pos | rest]) do
+    case Enum.member?(front, pos) do
+      true -> pos
+      _    -> find_first_revisit([pos | front], rest)
+    end
+  end
+
+  def find_first_revisit([start | rest]), do: find_first_revisit([start], rest)
+
+end
+```
+
+```elixir
+reverse_track = Day01.take_steps(steps)
+```
+
+```elixir
+[{x,y} | _] = reverse_track
+```
+
+```elixir
+x+y
+```
+
+```elixir
+track = Enum.reverse(reverse_track)
+```
+
+```elixir
+{x1, y1} = Day01.find_first_revisit(track)
+```
+
+```elixir
+x1+y1
+```

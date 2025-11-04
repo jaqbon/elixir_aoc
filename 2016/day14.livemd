@@ -1,0 +1,82 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day14 do
+  def generate_hash(salt, num) do
+    hash_input = salt <> to_string(num)
+
+    :crypto.hash(:md5, hash_input)
+    |> Base.encode16(case: :lower)
+    |> String.graphemes()
+  end
+
+
+  def test_for_3s([]), do: nil
+
+  def test_for_3s([a,a,a | _]), do: a
+
+  def test_for_3s([_ | rest]), do: test_for_3s(rest)
+
+
+  def test_for_5s(_,[]), do: false
+
+  def test_for_5s(a, [a,a,a,a,a | _]), do: true
+
+  def test_for_5s(a, [_ | rest]), do: test_for_5s(a, rest)
+
+
+  def find_keys(_,900, _, keys, _), do: keys
+
+  def find_keys(_,_, 1, keys, _), do: keys
+
+  def find_keys(salt, num, nkeys, keys, possible) do
+
+    hash = generate_hash(salt, num)
+
+    # remove expired possibles
+    possible_1 = Enum.filter(possible, fn {n,_} -> num <= n + 1000 end)
+
+    # of the remaining possibles, check if they have 5s
+    has_5s = Enum.filter(possible_1, fn {_,a} -> test_for_5s(a, hash) end)
+
+    # any possibles for which this hash has 5s are new keys
+    # update the number of found keys, the key list, and the possibles
+    {new_nkeys, new_keys, possible_2} =
+      case has_5s do
+        [] -> {nkeys, keys, possible_1}
+        h5 -> {nkeys+length(h5), h5++keys, Enum.filter(possible_1, fn p -> !Enum.member?(h5, p) end)}
+      end
+
+    # finally, test the new hash to see if it's a possible
+    case test_for_3s(hash) do
+      nil -> find_keys(salt, num+1, new_nkeys, new_keys, possible_2)
+      a   -> find_keys(salt, num+1, new_nkeys, new_keys, [{num,a} | possible_2])
+    end
+  end
+
+  def find_keys(salt), do: find_keys(salt, 0, 0, [], [])
+end
+```
+
+```elixir
+Day14.find_keys("abc")
+```

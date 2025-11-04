@@ -1,0 +1,90 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+messages =
+  lines
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+defmodule Day06 do
+  def make_columns([], cols), do: cols
+
+  def make_columns([msg | rest], cols) do
+    {new_cols,_} =
+      msg
+      |> Enum.reduce({cols, 0}, fn c, {acc, i} ->
+          {Map.replace!(acc, i, [c | acc[i]]), i+1} end)
+
+    make_columns(rest, new_cols)
+  end
+
+  def make_columns([first | _] = messages) do
+    n = length(first)
+
+    init_cols = Enum.reduce(0..(n-1), %{}, fn i, acc -> Map.put(acc, i, []) end)
+
+    make_columns(messages, init_cols)
+  end
+end
+```
+
+```elixir
+columns = Day06.make_columns(messages)
+```
+
+```elixir
+frequencies =
+  columns
+  |> Enum.reduce(%{}, fn {i,col}, frqs -> Map.put(frqs, i, Enum.frequencies(col)) end)
+
+```
+
+```elixir
+max_cs =
+  frequencies
+  |> Enum.reduce(%{}, fn {i, col_frqs}, acc ->
+        max_frq = Enum.max(Map.values(col_frqs))
+        [max_c] = Map.keys(Map.filter(col_frqs, fn {_,f} -> f == max_frq end))
+        Map.put(acc, i, max_c)
+      end)
+```
+
+```elixir
+n = map_size(max_cs)
+
+Enum.reduce(0..(n-1), "", fn i, str -> str <> max_cs[i] end)
+```
+
+```elixir
+min_cs =
+  frequencies
+  |> Enum.reduce(%{}, fn {i, col_frqs}, acc ->
+        max_frq = Enum.min(Map.values(col_frqs))
+        [max_c] = Map.keys(Map.filter(col_frqs, fn {_,f} -> f == max_frq end))
+        Map.put(acc, i, max_c)
+      end)
+```
+
+```elixir
+Enum.reduce(0..(n-1), "", fn i, str -> str <> min_cs[i] end)
+```

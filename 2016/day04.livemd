@@ -1,0 +1,132 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+rooms =
+  lines
+  |> Enum.map(fn str ->
+        reverse_index =
+          str
+          |> String.graphemes()
+          |> Enum.reverse()
+          |> Enum.find_index(fn c -> c == "-" end)
+
+        index = -1 - reverse_index
+
+        String.split_at(str, index)
+      end)
+  |> Enum.map(fn {name, dash_id_chk} -> {String.replace(dash_id_chk, "-", ""), name} end)
+  #|> Enum.map(&String.split(&1, "-"))
+  #|> Enum.map(&Enum.reverse(&1))
+  #|> Enum.map(fn [id_chk | name] -> {id_chk, Enum.reverse(name)} end)
+```
+
+```elixir
+defmodule Day04 do
+  def good_checksum?([], _), do: true
+  
+  def good_checksum?([c | rest_chk], [c | rest_frqs]), do: good_checksum?(rest_chk, rest_frqs)
+    
+  def good_checksum?(_,_), do: false
+
+
+  def process_room({id_chk, name}) do
+    raw_freqs =
+      String.split(name, "", trim: true)
+      |> Enum.reduce(%{}, fn str, frqs ->
+          str
+          |> String.split("", trim: true)
+          |> Enum.reduce(frqs, fn c, fs ->
+                if c == "-" do
+                  fs
+                else
+                  case fs[c] do
+                    nil -> Map.put(fs, c, 1)
+                    cnt -> Map.replace!(fs, c, cnt+1)
+                  end
+                end
+              end)
+            end)
+
+    freqs =
+      raw_freqs
+      |> Enum.group_by(fn {_, frq} -> frq end)
+      |> Enum.reduce([], fn {frq, cs}, acc ->
+          [{frq, Enum.reduce(cs, [], fn {c,_},l -> [c|l] end)} | acc] end)
+      |> Enum.sort_by(fn {frq, _} -> frq end, :desc)
+
+    [id_str, chk] =
+      id_chk
+      |> String.replace("]", "")
+      |> String.split("[")
+
+    id = String.to_integer(id_str)
+    
+    checksum = String.split(chk, "", trim: true)
+
+    sorted_by_freqs_and_alpha =
+      freqs
+      |> Enum.map(fn {f, cs} ->
+            case length(cs) > 1 do
+              true -> {f, Enum.sort(cs)}
+              _    -> {f, cs}
+            end
+          end)
+      |> Enum.reduce([], fn {_, cs}, acc -> acc ++ cs end)
+
+    {name, id, good_checksum?(checksum, sorted_by_freqs_and_alpha)}
+  end
+
+  def decrypt(name, id) do
+    name
+    |> String.to_charlist()
+    |> Enum.map(fn c -> if c == ?-, do: ?-, else: rem(c-?a+id, 26) + ?a end)
+    |> to_string()
+    |> String.replace("-", " ")
+  end
+end
+```
+
+```elixir
+Day04.process_room({"123[abxyz]", "aaaaa-bbb-z-y-x"})
+```
+
+```elixir
+good_rooms =
+  rooms
+  |> Enum.map(&Day04.process_room(&1))
+  |> Enum.filter(fn {_,_, is_real} -> is_real end)
+```
+
+```elixir
+good_rooms |> Enum.sum_by(fn {_, id, is_real} -> if is_real, do: id, else: 0 end)
+```
+
+```elixir
+Day04.decrypt("qzmt-zixmtkozy-ivhz", 343)
+```
+
+```elixir
+good_rooms
+|> Enum.map(fn {name, id, _} -> {Day04.decrypt(name, id), id} end)
+#|> IO.inspect(limit: :infinity)
+|> Enum.filter(fn {str, _} -> String.contains?(str, "north") end)
+```

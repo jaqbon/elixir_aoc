@@ -1,0 +1,151 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+ops =
+  lines
+  |> Enum.map(&String.split(&1, " ", trim: true))
+```
+
+```elixir
+{nx, ny} = dims = {50,6} # {7,3}
+```
+
+```elixir
+defmodule Day08 do
+  def init_screen({nx,ny}) do
+    scr =
+      Enum.reduce(0..(ny-1), %{}, fn y, scr ->
+        row = Enum.reduce(0..(nx-1), [], fn _,row -> ["." | row] end)
+        Map.put(scr, y, row)
+      end)
+
+    {{nx,ny}, scr}
+  end
+
+
+  def make_ops([], ops), do: Enum.reverse(ops)
+
+  def make_ops([["rect", size] | rest], ops) do
+    [dx, dy] = String.split(size, "x", trim: true)
+    op = {"rect", {String.to_integer(dx), String.to_integer(dy)}}
+    make_ops(rest, [op | ops])
+  end
+
+  def make_ops([["rotate", "row", dy_str, _, n_str] | rest], ops) do
+    dy = String.to_integer(String.slice(dy_str, 2, 100))
+    n  = String.to_integer(n_str)
+    op = {"rotrow", {dy, n}}
+    make_ops(rest, [op | ops])
+  end
+
+  def make_ops([["rotate", "column", dx_str, _, n_str] | rest], ops) do
+    dx = String.to_integer(String.slice(dx_str, 2, 100))
+    n  = String.to_integer(n_str)
+    op = {"rotcol", {dx, n}}
+    make_ops(rest, [op | ops])
+  end
+
+  def make_ops(lines) do
+    op_strs =
+      lines
+      |> Enum.map(&String.split(&1, " ", trim: true))
+
+    make_ops(op_strs, [])
+  end
+
+
+  def do_op({"rect", {dx, dy}}, {{_nx, ny} = dims, old_scr}) do
+    new_top =
+      Enum.reduce(0..(dy-1), %{}, fn y, scr ->
+        new_cols = Enum.reduce(0..(dx-1), [], fn _,cols -> ["#" | cols] end)
+
+        old_cols = Enum.drop(old_scr[y], dx)
+
+        Map.put(scr, y, new_cols ++ old_cols)
+      end)
+
+    new_scr =
+      Enum.reduce(dy..(ny-1), new_top, fn y, scr -> Map.put(scr, y, old_scr[y]) end)
+
+    {dims, new_scr}
+  end
+
+  def do_op({"rotrow", {y, n}}, {{nx,_ny} = dims, old_scr}) do
+    shift = rem(n, nx)
+
+    new_left  = Enum.drop(old_scr[y], nx-shift)
+    new_right = Enum.take(old_scr[y], nx-shift)
+
+    {dims, Map.replace!(old_scr, y, new_left ++ new_right)}
+  end
+
+  def do_op({"rotcol", {x, n}}, {{_nx,ny} = dims, old_scr}) do
+    shift = rem(n, ny)
+
+    old_col =
+      0..(ny-1)
+      |> Enum.reduce([], fn y,col ->
+          [c | _] = Enum.drop(old_scr[y], x)
+          [c | col]
+        end)
+      |> Enum.reverse()
+
+    new_top    = Enum.drop(old_col, ny-shift)
+    new_bottom = Enum.take(old_col, ny-shift)
+
+    new_scr =
+      (new_top ++ new_bottom)
+      |> Enum.with_index()
+      |> Enum.reduce(old_scr, fn {c,y},scr ->
+          new_left = Enum.take(old_scr[y], x)
+          new_right = Enum.drop(old_scr[y], x+1)
+          Map.put(scr, y, new_left ++ [c] ++ new_right)
+        end)
+
+    {dims, new_scr}
+  end
+
+  def run_ops([], {_, screen}), do: screen
+
+  def run_ops([op | rest], dims_and_screen) do
+    run_ops(rest, do_op(op, dims_and_screen))
+  end
+
+  def run(ops, dims), do: run_ops(make_ops(ops), init_screen(dims))
+end
+```
+
+```elixir
+screen = Day08.run(lines, dims)
+```
+
+```elixir
+# num lit
+Enum.reduce(screen, 0, fn {_,row}, num -> num + Enum.count(row, fn c -> c == "#" end) end)
+```
+
+```elixir
+Enum.map(0..(ny-1), fn y ->
+  letter_row = Enum.chunk_every(screen[y], 5)
+  row = Enum.reduce(letter_row, [], fn letter, row -> row ++ [".","."] ++ letter end)
+  to_string(row) end)
+```

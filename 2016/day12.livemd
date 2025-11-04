@@ -1,0 +1,97 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day12 do
+  def make_program(lines) do
+    lines
+    |> Enum.map(&String.split(&1, " ", trim: true))
+#    |> Enum.map(fn strs ->
+#          Enum.map(strs, fn str ->
+#            case Integer.parse(str) do
+#              :error -> str
+#              {n, _} -> n
+#            end
+#          end)
+#        end)
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {inst, i}, prg -> Map.put(prg, i, inst) end)
+  end
+
+  def make_registers() do
+    %{}
+    |> Map.put("a", 0)
+    |> Map.put("b", 0)
+    |> Map.put("c", 1)
+    |> Map.put("d", 0)
+  end
+
+
+  def execute(["cpy", x, y], reg, pc) do
+    val =
+      case Integer.parse(x) do
+        :error -> reg[x]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, y, val), pc+1}
+  end
+
+  def execute(["inc", x], reg, pc), do: {Map.replace!(reg, x, reg[x]+1), pc+1}
+  def execute(["dec", x], reg, pc), do: {Map.replace!(reg, x, reg[x]-1), pc+1}
+
+  def execute(["jnz", x, y], reg, pc) do
+    xval =
+      case Integer.parse(x) do
+        :error -> reg[x]
+        {n,_}  -> n
+      end
+
+    yval =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {reg, (if xval != 0, do: pc+yval, else: pc+1)}
+  end
+
+
+  def run(program, registers, program_counter) do
+    case program[program_counter] do
+      nil         ->  registers
+      instruction ->  #IO.inspect(instruction)
+                      {regs, pc} = execute(instruction, registers, program_counter)
+                      run(program, regs, pc)
+    end
+  end
+
+  def run(lines), do: run(make_program(lines), make_registers(), 0)
+end
+```
+
+```elixir
+Day12.make_program(lines)
+```
+
+```elixir
+Day12.run(lines)
+```

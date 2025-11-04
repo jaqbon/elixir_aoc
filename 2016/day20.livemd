@@ -1,0 +1,84 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+blacklist =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "-", trim: true))
+  |> Enum.map(fn [x1,x2] -> [String.to_integer(x1), String.to_integer(x2)] end)
+  |> Enum.sort_by(fn [a,_] -> a end)
+```
+
+```elixir
+defmodule Day20 do
+  def join_merged([],   joined), do: Enum.reverse(joined)
+  def join_merged([ab], joined), do: Enum.reverse([ab | joined])
+
+  def join_merged([[a,b], [c,d] | rest], joined) when c == b+1 do
+    join_merged([[a,d] | rest], joined)
+  end
+
+  def join_merged([ab | rest], joined), do: join_merged(rest, [ab | joined])
+
+  def join_merged(merged), do: join_merged(merged, [])
+
+
+  def merge_blacklist([ab],  merged) do
+    [ab | merged]
+    |> Enum.reverse()
+    |> join_merged()
+  end
+
+  def merge_blacklist([[a,b],[c,d] | rest], merged) when b < c do
+    merge_blacklist([[c,d] | rest], [[a,b] | merged])
+  end
+
+  def merge_blacklist([[a,b],[_c,d] | rest], merged) do
+    merge_blacklist([[a, max(b,d)] | rest], merged)
+  end
+
+  def merge_blacklist(blacklist), do: merge_blacklist(blacklist, [])
+
+
+  def find_number_allowed([[_,d]], n), do: {d,n}
+  
+  def find_number_allowed([[_,b],[c,d] | rest], n), do: find_number_allowed([[c,d] | rest], n+c-b-1)
+
+  def find_number_allowed(min_valid, max_valid, blacklist) do
+    [[first,_] | _] = blacklist
+
+    n0 = first - min_valid
+
+    {last, n1} = find_number_allowed(blacklist, 0)
+
+    n2 = max_valid - last
+
+    n0 + n1 + n2
+  end
+end
+```
+
+```elixir
+merged = Day20.merge_blacklist(blacklist)
+```
+
+```elixir
+joined = Day20.join_merged(merged)
+```
+
+```elixir
+Day20.find_number_allowed(0, 4294967295, joined)
+```

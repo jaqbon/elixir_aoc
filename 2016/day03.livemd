@@ -1,0 +1,56 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " ", trim: true))
+  |> Enum.map(fn [a,b,c] ->
+        [String.to_integer(a), String.to_integer(b), String.to_integer(c)] end)
+
+```
+
+```elixir
+sorted_row_reads =
+  lines
+  |> Enum.map(fn list -> Enum.sort(list) end)
+```
+
+```elixir
+Enum.filter(sorted_row_reads, fn [a,b,c] -> (a+b) > c end) |> Enum.count()
+```
+
+```elixir
+{col_as, col_bs, col_cs} =
+  lines
+  |> Enum.reduce({[], [], []}, fn [a, b, c], {as, bs, cs} ->
+      {[a|as], [b|bs], [c|cs]} end)
+```
+
+```elixir
+column = col_as ++ col_bs ++ col_cs
+```
+
+```elixir
+sorted_col_reads =
+  column
+  |> Enum.chunk_every(3)
+  |> Enum.map(fn abc -> Enum.sort(abc) end)
+```
+
+```elixir
+Enum.filter(sorted_col_reads, fn [a,b,c] -> (a+b) > c end) |> Enum.count()
+```

@@ -1,0 +1,178 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+test_str =
+  "vjqhodfzrrqjshbhx[lezezbbswydnjnz]ejcflwytgzvyigz[hjdilpgdyzfkloa]mxtkrysovvotkuyekba"
+
+
+```
+
+```elixir
+test_gs = String.graphemes(test_str)
+```
+
+```elixir
+defmodule Day07 do
+  def consume_brackets(["]" | rest], {_, supers}, {hyper, hypers}) do
+    remove_brackets(rest, {[], supers}, {[], [Enum.reverse(hyper) | hypers]})
+  end
+
+  def consume_brackets([c | rest], supernet, {hyper, hypers}) do
+    consume_brackets(rest, supernet, {[c | hyper], hypers})
+  end
+
+  
+  def remove_brackets([], {super, supers}, {hyper, hypers}) do
+    new_supers = if length(super) > 0, do: [Enum.reverse(super) | supers], else: supers
+    new_hypers = if length(hyper) > 0, do: [Enum.reverse(hyper)  | hypers], else: hypers
+
+    {new_supers, new_hypers}
+  end
+
+  def remove_brackets(["[" | rest], {super, supers}, {_, hypers}) do
+    consume_brackets(rest, {[], [Enum.reverse(super) | supers]}, {[], hypers})
+  end
+
+  def remove_brackets([c | rest], {super, supers}, hypernet) do
+    remove_brackets(rest, {[c | super], supers}, hypernet)
+  end
+
+  def remove_brackets(gs), do: remove_brackets(gs, {[], []}, {[], []})
+
+
+  def has_ABBA?([]), do: false
+
+  def has_ABBA?([a,a,a,a | rest]), do: has_ABBA?(rest)
+
+  def has_ABBA?([a,b,b,a | _]), do: true
+
+  def has_ABBA?([_ | rest]), do: has_ABBA?(rest)
+
+
+  def supports_TLS?(str) do
+    {supers, hypers} =
+      str
+      |> String.graphemes()
+      |> remove_brackets()
+
+    #IO.inspect(supers)
+    #IO.inspect(hypers)
+
+    supers_has_ABBA =
+      supers
+      |> Enum.reduce_while(false, fn gs,_ ->
+            case has_ABBA?(gs) do
+              true -> {:halt, true}
+              _    -> {:cont, false}
+            end
+          end)
+
+    hypers_has_ABBA =
+      hypers
+      |> Enum.reduce_while(false, fn gs,_ ->
+            case has_ABBA?(gs) do
+              true -> {:halt, true}
+              _    -> {:cont, false}
+            end
+          end)
+
+    supers_has_ABBA and (not hypers_has_ABBA)
+  end
+
+
+  def find_ABAs([], abas), do: abas
+
+  def find_ABAs([a,a,a | rest], abas), do: find_ABAs([a | rest], abas)
+
+  def find_ABAs([a,b,a | rest], abas), do: find_ABAs([b, a | rest], [[a,b,a] | abas])
+
+  def find_ABAs([_ | rest], abas), do: find_ABAs(rest, abas)
+
+  def find_ABAs(gs), do: find_ABAs(gs, [])
+
+
+  def find_BABs([], babs), do: babs
+
+  def find_BABs([b, b, b | rest], babs), do: find_BABs([b | rest], babs)
+
+  def find_BABs([b, a, b | rest], babs), do: find_BABs([a, b | rest], [[b, a, b] | babs])
+
+  def find_BABs([_ | rest], babs), do: find_BABs(rest, babs)
+
+  def find_BABs(gs), do: find_BABs(gs, [])
+
+
+  def supports_SSL?(str) do
+    {supers, hypers} =
+      str
+      |> String.graphemes()
+      |> remove_brackets()
+
+    #IO.inspect(supers, label: "supers")
+    #IO.inspect(hypers, label: "hypers")
+
+    all_abas =
+      supers
+      |> Enum.reduce([], fn super, abas -> find_ABAs(super) ++ abas end)
+
+    #IO.inspect(all_abas, label: "all_abas")
+
+    all_babs =
+      hypers
+      |> Enum.reduce([], fn hyper, babs -> find_ABAs(hyper) ++ babs end)
+
+    #IO.inspect(all_babs, label: "all_babs")
+
+    Enum.reduce_while(all_abas, false, fn [a,b,a],_ ->
+      case Enum.member?(all_babs, [b,a,b]) do
+        true -> {:halt, true}
+        _    -> {:cont, false}
+      end
+    end)
+  end
+
+end
+```
+
+```elixir
+Day07.supports_SSL?("zazbz[bzb]cdb")
+```
+
+```elixir
+Day07.supports_TLS?("abcd[bddb]xyyx")
+```
+
+```elixir
+supports_TLS = Enum.map(lines, &Day07.supports_TLS?(&1))
+```
+
+```elixir
+supports_TLS |> Enum.count(fn x -> x end)
+```
+
+```elixir
+supports_SSL = Enum.map(lines, &Day07.supports_SSL?(&1))
+```
+
+```elixir
+supports_SSL |> Enum.count(fn x -> x end)
+```

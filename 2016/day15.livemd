@@ -1,0 +1,53 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+disc_data =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, [" ", "#", ";", "=", ",", "."], trim: true))
+  |> Enum.map(fn [_,ndisc,_,npos,_,_,_,_,_,_,_,_,pos0] -> {ndisc, npos, pos0} end)
+  |> Enum.map(fn {disc_num, num_pos, pos_0} ->
+      {String.to_integer(disc_num), String.to_integer(num_pos), String.to_integer(pos_0)} end)
+```
+
+```elixir
+defmodule Day15 do
+  def find_start_time(disc_data, t) do
+    good_t =
+      disc_data
+      |> Enum.reduce_while(true, fn {disc_num,num_pos,pos_0},_ ->
+        case rem(t+disc_num+pos_0, num_pos) do
+          0 -> {:cont, true}
+          _ -> {:halt, false}
+        end
+      end)
+
+    case good_t do
+      true -> t
+      _    -> find_start_time(disc_data, t+1)
+    end
+  end
+  def find_start_time(disc_data), do: find_start_time(disc_data, 0)
+end
+```
+
+```elixir
+Day15.find_start_time(disc_data)
+```
+
+```elixir
+Day15.find_start_time(disc_data++[{7,11,0}])
+```

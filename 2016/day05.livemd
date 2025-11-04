@@ -1,0 +1,93 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day05 do
+  def get_hash(door_id, n) do
+    hash_input = door_id <> to_string(n)
+
+    :crypto.hash(:md5, hash_input) |> Base.encode16(case: :lower)
+  end
+
+  def find_next_n(door_id, n) do
+    hash = get_hash(door_id, n)
+
+    case String.starts_with?(hash, "00000") do
+      true -> {String.at(hash, 5), String.at(hash, 6), n+1}
+      _    -> find_next_n(door_id, n+1)
+    end
+  end
+
+  def generate_password(0, _, _, pwd), do: pwd
+
+  def generate_password(loop, door_id, n, pwd) do
+    {c, _, next_n} = find_next_n(door_id, n)
+    next_pwd = pwd <> c
+    IO.inspect(next_pwd)
+    generate_password(loop-1, door_id, next_n, next_pwd)
+  end
+
+  def generate_password(door_id), do: generate_password(8, door_id, 0, "")
+
+
+  def show_password_map(pwd_map) do
+    str = Enum.reduce(0..7, "", fn i, s -> s <> pwd_map[i] end)
+    IO.inspect(str)
+    pwd_map
+  end
+
+  def generate_new_password(0, _, _, pwd_map), do: show_password_map(pwd_map)
+
+  def generate_new_password(loop, door_id, n, pwd_map) do
+    {place_c, c, next_n} = find_next_n(door_id, n)
+
+    place = String.to_integer(place_c, 16)
+
+    {new_pwd_map, new_loop} =
+      case pwd_map[place] do
+        "_" -> {Map.put(pwd_map, place, c) |> show_password_map(), loop-1}
+        _   -> {pwd_map, loop}
+      end
+
+    generate_new_password(new_loop, door_id, next_n, new_pwd_map)
+  end
+
+  def generate_new_password(door_id) do
+    pwd_map = for i <- 0..7, into: %{}, do: {i, "_"}
+  
+    show_password_map(pwd_map)
+
+    generate_new_password(8, door_id, 0, pwd_map)
+  end
+end
+```
+
+```elixir
+#Day05.generate_password("abc")
+```
+
+```elixir
+Day05.generate_new_password("abc")
+```
+
+```elixir
+Day05.generate_new_password("ugkcyxxp")
+```

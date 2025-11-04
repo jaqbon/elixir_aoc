@@ -1,0 +1,87 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+line =
+  input
+  |> Kino.Input.read()
+  |> String.split("", trim: true)
+  |> Enum.with_index()
+  |> Enum.reduce(%{}, fn {c,i},acc -> Map.put(acc, i, c) end)
+```
+
+```elixir
+defmodule Day18 do
+  def count_safes(line), do: Enum.reduce(line, 0, fn {_,c},n -> if c == ".", do: n+1, else: n end)
+
+
+  def rules("^",_,"."), do: "^"
+  def rules("^",_,nil), do: "^"
+
+  def rules(".",_,"^"), do: "^"
+  def rules(nil,_,"^"), do: "^"
+
+  def rules(_,_,_), do: "."
+
+
+  def next_line(line) do
+    n = map_size(line)
+
+    0..(n-1)
+    |> Enum.reduce(%{}, fn i,acc ->
+          Map.put(acc, i, rules(line[i-1], line[i], line[i+1]))
+        end)
+  end
+
+
+  def show(line) do
+    n = map_size(line)
+
+    0..(n-1)
+    |> Enum.reduce("", fn i,str -> str <> line[i] end)
+  end
+
+
+  def run(_, 0, n), do: n
+
+  def run(line, loops, n) do
+    #IO.puts(show(line))
+    next = next_line(line)
+    run(next, loops-1, n + count_safes(next))
+  end
+  def run(line, loops), do: run(line, loops-1, count_safes(line))
+
+
+  def keep_list(_, 0, list), do: Enum.reverse(list)
+
+  def keep_list(line, loops, list) do
+    #IO.puts(show(line))
+    next = next_line(line)
+    keep_list(next, loops-1, [count_safes(next) | list])
+  end
+  def keep_list(line, loops), do: keep_list(line, loops-1, [count_safes(line)])
+end
+```
+
+```elixir
+Day18.run(line, 40)
+```
+
+```elixir
+Day18.keep_list(line, 40) |> IO.inspect(charlists: :as_lists)
+```
+
+```elixir
+Day18.run(line, 400000)
+```

@@ -1,0 +1,175 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day16 do
+  def to_bits(str) do
+    str
+    |> String.split("", trim: true)
+    |> Enum.map(fn s -> String.to_integer(s) end)
+  end
+
+  def to_str(bits), do: Enum.reduce(bits, "", fn b,s -> s <> to_string(b) end)
+
+  def step(bits), do: bits ++ [0] ++ Enum.map(Enum.reverse(bits), fn b -> abs(b-1) end)
+
+
+  def fill_disk(data, size, disk_size) when size >= disk_size, do: Enum.take(data, disk_size)
+
+  def fill_disk(data, size, disk_size), do: fill_disk(step(data), 2*size + 1, disk_size)
+
+
+  def reduce_pairs([], acc), do: Enum.reverse(acc)
+
+  def reduce_pairs([[b,b] | rest], acc), do: reduce_pairs(rest, [1 | acc])
+  def reduce_pairs([[a,b] | rest], acc), do: reduce_pairs(rest, [0 | acc])
+
+  def reduce_pairs(bits), do: reduce_pairs(bits, [])
+
+
+  def calculate_checksum(bits) when rem(length(bits), 2) == 1, do: bits
+
+  def calculate_checksum(bits) do
+    bits
+    |> Enum.chunk_every(2)
+    |> reduce_pairs()
+    |> calculate_checksum()
+  end
+
+  def process(initial_bit_str, disk_size) do
+    size = String.length(initial_bit_str)
+
+    initial_bit_str
+    |> to_bits()
+    |> fill_disk(size, disk_size)
+    |> calculate_checksum()
+  end
+end
+```
+
+```elixir
+test = Day16.to_bits("111100001010")
+```
+
+```elixir
+Day16.step(test)
+```
+
+```elixir
+"110010110100" |> Day16.to_bits() |> Day16.calculate_checksum()
+```
+
+```elixir
+Day16.process("10000", 20)
+```
+
+```elixir
+"10000"
+|> Day16.to_bits()
+|> Day16.step()
+|> Day16.step()
+|> Enum.take(20)
+|> Day16.calculate_checksum()
+```
+
+```elixir
+Day16.process("10011111011011001", 35651584) |> Day16.to_str()
+```
+
+```elixir
+defmodule Day16_bits do
+  def to_bitstring(str) when is_binary(str) do
+    for <<byte::binary-1 <- str>>, into: <<>> do
+      case byte do
+        "0" -> <<0::1>>
+        "1" -> <<1::1>>
+        _ -> raise ArgumentError, "Invalid character in binary string"
+      end
+    end
+  end
+
+
+  # Public API to reverse bits in a bitstring
+  def reverse_bits(bitstring) when is_bitstring(bitstring) do
+    extracted_bits = extract_bits(bitstring, [])
+    reversed_bits = Enum.reverse(extracted_bits)
+    reconstruct_bitstring(reversed_bits, <<>>)
+  end
+
+  # Recursively extract bits and accumulate them in a list
+  def extract_bits(<<bit::size(1), rest::bitstring>>, acc) do
+    extract_bits(rest, [bit | acc])
+  end
+  def extract_bits(<<>>, acc), do: Enum.reverse(acc)
+
+  # Recursively reconstruct the bitstring from a list of bits
+  def reconstruct_bitstring([bit | rest], acc) do
+    reconstruct_bitstring(rest, <<acc::bitstring, bit::size(1)>>)
+  end
+  def reconstruct_bitstring([], acc), do: acc
+
+
+  def next_step(<<bs::bitstring>>, disk_size) when bit_size(bs) >= disk_size do
+    <<first::size(disk_size), _rest>> = bs
+    first
+  end
+
+  def next_step(<<bs::bitstring>>, disk_size) do
+    rev = reverse_bits(bs)
+
+    next_bitstring = <<bs::bitstring, <<0::1>>, rev::bitstring>>
+
+    IO.inspect(next_bitstring)
+
+    next_step(next_bitstring, disk_size)
+  end
+
+  def generate_data(init_data_str, disk_size) do
+    init_data = to_bitstring(init_data_str)
+
+    next_step(init_data, disk_size)
+  end
+end
+```
+
+```elixir
+test = Day16_bits.to_bitstring("10011")
+```
+
+```elixir
+bit_size(test)
+```
+
+```elixir
+rev = Day16_bits.reverse_bits(test)
+```
+
+```elixir
+Day16_bits.extract_bits(test,[])
+```
+
+```elixir
+Day16_bits.extract_bits(rev,[])
+```
+
+```elixir
+Day16_bits.generate_data("11111", 11)
+```

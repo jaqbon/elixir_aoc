@@ -1,0 +1,353 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+lines |> Enum.map(&String.split(&1, " ", trim: true))
+```
+
+```elixir
+defmodule Day10 do
+  def read_instruction(["value", v_str, _, _, _, b_str]) do
+    {"value", {String.to_integer(v_str), String.to_integer(b_str)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"bot",lo,_,_,_,"bot",hi]) do
+    {"bbb", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"bot",lo,_,_,_,"output",hi]) do
+    {"bbo", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"output",lo,_,_,_,"bot",hi]) do
+    {"bob", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"output",lo,_,_,_,"output",hi]) do
+    {"boo", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def make_instructions(lines) do
+    lines
+    |> Enum.map(&String.split(&1, " ", trim: true))
+    |> Enum.reduce([], fn strs, ops -> [read_instruction(strs) | ops] end)
+    |> Enum.reduce({[],[]}, fn inst,{inps,outs} ->
+          {first, _} = inst
+          case first do
+            "value" -> {[inst | inps], outs}
+            _       -> {inps, [inst | outs]}
+          end
+        end)
+  end
+
+
+  def store_in_bot(bots, bot, nil), do: Map.replace!(bots, bot, nil)
+
+  def store_in_bot(bots, bot, value) do
+    case bots[bot] do
+      nil -> Map.put(bots, bot, [value])
+      vs  -> Map.replace!(bots, bot, Enum.sort([value | vs]))
+    end
+  end
+
+  def store_in_out(outs, out, value) do
+    Map.put(outs, out, value)
+  end
+
+
+
+  def execute("bbb", bot, lo_to, hi_to, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "bbb")
+    case bots[bot] do
+      nil -> {bots, outs}
+      [_] -> {bots, outs}
+      [l,h] -> new_bots =
+                bots
+                |> store_in_bot(lo_to, l)
+                |> store_in_bot(hi_to, h)
+                |> store_in_bot(bot, nil)
+              #IO.inspect({new_bots, outs}, label: "bbb")
+              {new_bots, outs}
+    end
+  end
+
+  def execute("bbo", bot, lo_to, hi_to, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "bbo")
+    case bots[bot] do
+      nil -> {bots, outs}
+      [_] -> {bots, outs}
+      [l,h] -> new_bots = bots |> store_in_bot(lo_to, l) |> store_in_bot(bot, nil)
+               new_outs = outs |> store_in_out(hi_to, h)
+               #IO.inspect({new_bots, new_outs}, label: "bbo")
+               {new_bots, new_outs}
+    end
+  end
+
+  def execute("bob", bot, lo_to, hi_to, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "bob")
+    case bots[bot] do
+      nil -> {bots, outs}
+      [_] -> {bots, outs}
+      [l,h] -> new_outs = outs |> store_in_out(lo_to, l)
+               new_bots = bots |> store_in_bot(hi_to, h) |> store_in_bot(bot, nil)
+               #IO.inspect({new_bots, new_outs}, label: "bob")
+               {new_bots, new_outs}
+    end
+  end
+
+  def execute("boo", bot, lo_to, hi_to, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "boo")
+    case bots[bot] do
+      nil -> {bots, outs}
+      [_] -> {bots, outs}
+      [l,h] -> new_bots = bots |> store_in_bot(bot, nil)
+               new_outs = outs |> store_in_out(lo_to, l) |> store_in_out(hi_to, h)
+               #IO.inspect({new_bots, new_outs}, label: "boo")
+               {new_bots, new_outs}
+    end
+  end
+
+  def run(comps, bots, outs) do
+    #IO.inspect(bots, label: "bots", charlists: :as_lists)
+
+#    test = Enum.filter(bots, fn {bot, values} ->
+#        case values do
+#          [17,61] -> true
+#          [17, _] -> true
+#          [ _,17] -> true
+#          [61, _] -> true
+#          [ _,61] -> true
+#          [17]    -> true
+#          [61]    -> true
+#          _       -> false
+#        end
+#      end)
+
+    test = Enum.filter(bots, fn {bot, values} ->
+        case values do
+          [2,5] -> true
+          _       -> false
+        end
+      end)
+    IO.inspect(test, label: "test", charlists: :as_lists)
+    
+    {new_bots, new_outs} =
+      Enum.reduce(comps, {bots, outs}, fn {type, {bot, lo_to, hi_to}}, {bs,os} ->
+        #IO.inspect({type, {bot, lo_to, hi_to}})
+        execute(type, bot, lo_to, hi_to, bs, os)
+      end)
+
+    #IO.inspect(new_bots, label: "new_bots")
+    #IO.inspect(new_outs, label: "new_outs")
+
+    case (new_bots == bots) and (new_outs) == outs do
+      true -> outs
+      _    -> run(comps, new_bots, new_outs)
+    end
+  end
+  
+  def run(lines) do
+    {inps, comps} = make_instructions(lines)
+
+    bots = 
+      inps
+      |> Enum.reduce(%{}, fn {_,{v,b}}, bs ->
+            case bs[b] do
+            nil -> Map.put(bs, b, [v])
+            vs  -> new_vs = Enum.sort([v|vs])
+                    Map.replace!(bs, b, new_vs)
+              end
+              end)
+
+    IO.inspect(bots, label: "init_bots", charlists: :as_lists)
+
+    run(comps, bots, %{})
+  end
+end
+```
+
+```elixir
+    lines
+    |> Enum.map(&String.split(&1, " ", trim: true))
+    |> Enum.reduce([], fn strs, ops -> [Day10.read_instruction(strs) | ops] end)
+
+```
+
+```elixir
+Day10.make_instructions(lines)
+```
+
+```elixir
+Day10.run(lines)
+```
+
+```elixir
+defmodule Day10_Part1 do
+  def read_instruction(["value", v_str, _, _, _, b_str]) do
+    {"value", {String.to_integer(v_str), String.to_integer(b_str)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"bot",lo,_,_,_,"bot",hi]) do
+    {"bbb", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"bot",lo,_,_,_,"output",hi]) do
+    {"bbo", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"output",lo,_,_,_,"bot",hi]) do
+    {"bob", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def read_instruction(["bot", b,_,_,_,"output",lo,_,_,_,"output",hi]) do
+    {"boo", {String.to_integer(b), String.to_integer(lo), String.to_integer(hi)}}
+  end
+
+  def make_instructions(lines) do
+    lines
+    |> Enum.map(&String.split(&1, " ", trim: true))
+    |> Enum.reduce([], fn strs, ops -> [read_instruction(strs) | ops] end)
+  end
+
+
+  def store_in_bot(bots, bot, nil), do: Map.replace!(bots, bot, nil)
+
+  def store_in_bot(bots, bot, value) do
+    case bots[bot] do
+      nil -> Map.put(bots, bot, [value])
+      vs  -> Map.replace!(bots, bot, Enum.sort([value | vs]))
+    end
+  end
+
+  def store_in_out(outs, out, value) do
+    Map.put(outs, out, value)
+  end
+
+
+
+  def execute({"value", {v,b}}, bots, outs) do
+    {store_in_bot(bots, b, v), outs}
+  end
+
+  def execute({"bbb", {bot, lo_to, hi_to}}, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "bbb")
+    case bots[bot] do
+      nil -> nil
+      [_] -> nil
+      [l,h] -> new_bots =
+                bots
+                |> store_in_bot(lo_to, l)
+                |> store_in_bot(hi_to, h)
+                |> store_in_bot(bot, nil)
+              #IO.inspect({new_bots, outs}, label: "bbb")
+              {new_bots, outs}
+    end
+  end
+
+  def execute({"bbo", {bot, lo_to, hi_to}}, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "bbo")
+    case bots[bot] do
+      nil -> nil
+      [_] -> nil
+      [l,h] -> new_bots = bots |> store_in_bot(lo_to, l) |> store_in_bot(bot, nil)
+               new_outs = outs |> store_in_out(hi_to, h)
+               #IO.inspect({new_bots, new_outs}, label: "bbo")
+               {new_bots, new_outs}
+    end
+  end
+
+  def execute({"bob", {bot, lo_to, hi_to}}, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "bob")
+    case bots[bot] do
+      nil -> nil
+      [_] -> nil
+      [l,h] -> new_outs = outs |> store_in_out(lo_to, l)
+               new_bots = bots |> store_in_bot(hi_to, h) |> store_in_bot(bot, nil)
+               #IO.inspect({new_bots, new_outs}, label: "bob")
+               {new_bots, new_outs}
+    end
+  end
+
+  def execute({"boo", {bot, lo_to, hi_to}}, bots, outs) do
+    #IO.inspect({bot, lo_to, hi_to}, label: "boo")
+    case bots[bot] do
+      nil -> nil
+      [_] -> nil
+      [l,h] -> new_bots = bots |> store_in_bot(bot, nil)
+               new_outs = outs |> store_in_out(lo_to, l) |> store_in_out(hi_to, h)
+               #IO.inspect({new_bots, new_outs}, label: "boo")
+               {new_bots, new_outs}
+    end
+  end
+
+  def run(insts, bots, outs, {has_17,has_61}) do
+    #IO.inspect(insts)
+    #IO.inspect(bots, label: "bots", charlists: :as_lists)
+
+    {new_has_17, new_has_61} =
+      Enum.reduce(bots, {has_17,has_61}, fn {bot, values},{h17,h61} ->
+        case values do
+          [17,61] -> {[bot|h17], [bot|h61]}
+          [17, _] -> {[bot|h17], h61}
+          [_, 17] -> {[bot|h17], h61}
+          [61, _] -> {h17, [bot|h61]}
+          [_, 61] -> {h17, [bot|h61]}
+          _       -> {h17,h61}
+        end
+      end)
+
+#    test = Enum.filter(bots, fn {_bot, values} ->
+#        case values do
+#          [17,61] -> true
+#          _       -> false
+#        end
+#      end)
+#    IO.inspect(test, label: "test", charlists: :as_lists)
+    
+    {new_insts, new_bots, new_outs} =
+      Enum.reduce(insts, {[], bots, outs}, fn inst, {is,bs,os} ->
+        #IO.inspect({type, {bot, lo_to, hi_to}})
+        case execute(inst, bs, os) do
+          nil -> {[inst | is], bs,os}
+          {b,o} -> {is, b, o}
+        end
+      end)
+
+    #IO.inspect(new_bots, label: "new_bots")
+    #IO.inspect(new_outs, label: "new_outs")
+
+    case (new_insts == []) or ((new_bots == bots) and (new_outs) == outs) do
+      true -> {new_outs, {Enum.uniq(new_has_17),Enum.uniq(new_has_61)}}
+      _    -> run(Enum.reverse(new_insts), new_bots, new_outs, {new_has_17,new_has_61})
+    end
+  end
+  
+  def run(lines), do: run(make_instructions(lines), %{}, %{}, {[],[]})
+end
+```
+
+```elixir
+{outs, {h17,h61}} = Day10_Part1.run(lines)
+```
+
+```elixir
+Enum.filter(h17, fn x -> Enum.member?(h61,x) end)
+```

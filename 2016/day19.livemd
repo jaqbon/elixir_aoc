@@ -1,0 +1,115 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day19_Part1 do
+  def make_ring(n) do
+    n..1//-1
+    |> Enum.reduce([], fn i,ring -> [{i,1} | ring] end)
+  end
+
+  def play([], [last]), do: last
+
+  def play([], played), do: play(Enum.reverse(played), [])
+  
+  def play([last], played), do: play([last | Enum.reverse(played)], [])
+
+  def play([{i,n1}, {_,n2} | rest], played), do: play(rest, [{i,n1+n2} | played])
+
+  def play(ring), do: play(ring, [])
+end
+```
+
+```elixir
+ring = Day19_Part1.make_ring(3004953)
+```
+
+```elixir
+Day19_Part1.play(ring)
+```
+
+```elixir
+defmodule Day19_Part2 do
+  def make_ring(n) do
+    0..(n-1)
+    |> Enum.reduce(%{}, fn i,ring -> Map.put(ring, i, 1) end)
+  end
+
+
+  def find_next_victim(_,_, current, 0), do: current
+
+  def find_next_victim(ring, num0, current, num_to_victim) do
+    next = rem(current + 1, num0)
+
+    case ring[next] do
+      0 -> find_next_victim(ring, num0, next, num_to_victim)
+      _ -> find_next_victim(ring, num0, next, num_to_victim-1)
+    end
+  end
+
+
+  def find_next_taker(ring, num0, current) do
+    next = rem(current + 1, num0)
+
+    case ring[next] do
+      0 -> find_next_taker(ring, num0, next)
+      _ -> next
+    end
+  end
+
+
+  def play(ring, _,_, 1) do
+    [{i,n}] = Enum.filter(ring, fn {_,n} -> n > 0 end)
+
+    {i+1,n}
+  end
+
+  def play(ring, num0, taker, num) do
+    n1 = ring[taker]
+
+    num_to_victim = div(num, 2)
+
+    victim = find_next_victim(ring, num0, taker, num_to_victim)
+
+    #IO.inspect(victim, label: "victim")
+
+    n2 = ring[victim]
+
+    new_ring =
+      ring
+      |> Map.replace!(taker, n1+n2)
+      |> Map.replace!(victim, 0)
+
+    new_taker = find_next_taker(new_ring, num0, taker)
+
+    #IO.inspect(new_ring)
+    #IO.inspect(new_taker, label: "new_taker")
+
+    play(new_ring, num0, new_taker, num-1)
+  end
+
+  def play(num0), do: play(make_ring(num0), num0, 0, num0)
+end
+```
+
+```elixir
+Day19_Part2.play(30049)
+```
