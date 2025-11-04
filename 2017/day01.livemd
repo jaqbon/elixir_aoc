@@ -1,0 +1,72 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[line] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day01 do
+  def captcha([last], first, sum), do: (if last == first, do: sum+last, else: sum)
+
+  def captcha([a,b | rest], first, sum) do
+    new_sum = if a == b, do: sum+a, else: sum
+
+    captcha([b | rest], first, new_sum)
+  end
+
+  def captcha(line) do
+    digits =
+      line
+      |> String.graphemes()
+      |> Enum.map(&String.to_integer(&1))
+
+    captcha(digits, Enum.at(digits, 0), 0)
+  end
+
+
+  def captcha2([],[], sum), do: 2*sum
+
+  def captcha2([a | rest_left], [b | rest_right], sum) do
+    new_sum = if a == b, do: sum+a, else: sum
+
+    captcha2(rest_left, rest_right, new_sum)
+  end
+
+  def captcha2(line) do
+    digits =
+      line
+      |> String.graphemes()
+      |> Enum.map(&String.to_integer(&1))
+
+    left  = Enum.take(digits, div(length(digits), 2))
+    right = Enum.drop(digits, div(length(digits), 2))
+
+    captcha2(left, right, 0)
+  end
+
+
+end
+```
+
+```elixir
+Day01.captcha(line)
+```
+
+```elixir
+Day01.captcha2(line)
+```

@@ -1,0 +1,78 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1,[" ","<","-",">",","],trim: true))
+  |> Enum.map(&Enum.map(&1, fn s -> String.to_integer(s) end))
+```
+
+```elixir
+defmodule Day12 do
+  def make_map([], map), do: map
+
+  def make_map([[p|ps] | rest], map), do: make_map(rest, Map.put(map, p, ps))
+
+  def make_map(lines), do: make_map(lines, %{})
+
+
+  def find_group(_, [], g), do: Enum.sort(g)
+
+  def find_group(map, [p | rest], g) do
+    #IO.inspect({p, rest, g})
+    case Enum.member?(g, p) do
+      true ->
+        find_group(map, rest, g)
+      false ->
+        find_group(map, map[p]++rest, [p | g])
+    end
+  end
+
+  def find_group(map, p), do: find_group(map, [p], [])
+
+
+  def find_all_groups(_, [], gs), do: gs
+
+  def find_all_groups(map, [p | _] = ps, gs) do
+    g = find_group(map, p)
+    new_ps = Enum.filter(ps, fn p -> not Enum.member?(g, p) end)
+    find_all_groups(map, new_ps, [g | gs])
+  end
+
+  def find_all_groups(map), do: find_all_groups(map, Map.keys(map), [])
+end
+```
+
+```elixir
+map = Day12.make_map(lines)
+```
+
+```elixir
+group_0 = Day12.find_group(map, 0)
+```
+
+```elixir
+Enum.count(group_0)
+```
+
+```elixir
+groups = Day12.find_all_groups(map)
+```
+
+```elixir
+Enum.count(groups)
+```

@@ -1,0 +1,213 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+key_string = "jxqlasbh"#"flqrgnkx"#
+```
+
+```elixir
+defmodule Day14 do
+  def apply([], list, skip_size, start), do: {list, start, skip_size, length(list)-start}
+
+  def apply([l | rest], list, skip_size, start) do
+    n = length(list)
+
+    reversed = Enum.reverse(Enum.take(list, l)) ++ Enum.drop(list, l)
+
+    offset = rem(l + skip_size, n)
+
+    new_list = Enum.drop(reversed, offset) ++ Enum.take(reversed, offset)
+
+    new_start = rem(start + offset, n)
+
+    #zero_pos = n - new_start
+
+    #IO.inspect({new_list, new_start, zero_pos})
+
+    apply(rest, new_list, skip_size+1, new_start)
+  end
+
+
+  def init_list(n), do: (for i <- 0..(n-1), do: i)
+
+
+  def run(lengths, n), do: apply(lengths, init_list(n), 0, 0)
+
+
+  def run_rounds(0, _, list, _, start) do
+    zero_pos = length(list) - start
+    Enum.drop(list, zero_pos) ++ Enum.take(list, zero_pos)
+  end
+
+  def run_rounds(rounds, lengths, list, skip_size, start) do
+    {new_list, new_start, new_skip_size, _} = apply(lengths, list, skip_size, start)
+
+    run_rounds(rounds-1, lengths, new_list, new_skip_size, new_start)
+  end
+
+  def run_rounds(lengths, n, rounds), do: run_rounds(rounds, lengths, init_list(n), 0, 0)
+
+
+  def make_dense_hash(sparse_hash) do
+    {_,dense_hash} =
+      1..16
+      |> Enum.reduce({sparse_hash, []}, fn _,{sprs, dens} ->
+        chunk = Enum.take(sprs, 16)
+        xor = Enum.reduce(chunk, 0, fn x, acc -> Bitwise.bxor(x, acc) end)
+        {Enum.drop(sprs,16), [xor | dens]}
+      end)
+
+    Enum.reverse(dense_hash)
+  end
+
+
+  def to_hex(hash) do
+    Enum.reduce(hash, "", fn x,str ->
+      bin = <<x::integer-size(16)>>
+      hex = Base.encode16(bin, case: :lower)
+      str <> String.slice(hex, 2, 2)
+    end)
+  end
+
+
+  def to_bits("0"), do: [0,0,0,0]
+  def to_bits("1"), do: [0,0,0,1]
+  def to_bits("2"), do: [0,0,1,0]
+  def to_bits("3"), do: [0,0,1,1]
+  def to_bits("4"), do: [0,1,0,0]
+  def to_bits("5"), do: [0,1,0,1]
+  def to_bits("6"), do: [0,1,1,0]
+  def to_bits("7"), do: [0,1,1,1]
+  def to_bits("8"), do: [1,0,0,0]
+  def to_bits("9"), do: [1,0,0,1]
+  def to_bits("a"), do: [1,0,1,0]
+  def to_bits("b"), do: [1,0,1,1]
+  def to_bits("c"), do: [1,1,0,0]
+  def to_bits("d"), do: [1,1,0,1]
+  def to_bits("e"), do: [1,1,1,0]
+  def to_bits("f"), do: [1,1,1,1]
+
+
+  def make_row_bits(key_string, row) do
+    row_string = key_string <> "-" <> Integer.to_string(row)
+
+    ascii =
+      row_string
+      |> to_charlist()
+
+    ascii_lengths = ascii ++ [17, 31, 73, 47, 23]
+
+    sparse_hash = ascii_lengths |> run_rounds(256, 64)
+
+    dense_hash = make_dense_hash(sparse_hash)
+
+    row_hex = to_hex(dense_hash)
+
+    row_hex
+    |> String.graphemes()
+    |> Enum.reduce([], fn c,bits ->  bits ++ Day14.to_bits(c) end)
+  end
+
+
+  def make_usage_map(key_string) do
+    Enum.reduce(0..127, %{}, fn row, map1 ->
+      row_bits = make_row_bits(key_string, row)
+
+      {_, map2} =
+        Enum.reduce(row_bits, {0,map1}, fn bit, {col, map2} ->
+          {col+1, Map.put(map2, {row,col}, {bit, nil})}
+        end)
+
+      map2
+    end)
+  end
+
+
+  @offsets [{1,0}, {-1,0}, {0,1}, {0,-1}]
+
+
+  def search_region(map, region_id, sqr_num, [], region, regions) do
+    find_next_region(map, region_id+1, sqr_num+1, [{region_id, Enum.reverse(region)} | regions])
+  end
+
+  def search_region(map, region_id, sqr_num, [{row, col} | rest], region, regions) do
+    new_pos =
+      Enum.reduce(@offsets, [], fn {dr,dc}, ps ->
+        {r,c} = {row+dr, col+dc}
+        case map[{r,c}] do
+          {1,nil} -> [{r,c} | ps]
+          _       -> ps
+        end
+      end)
+
+    new_map = Map.replace!(map, {row,col}, {1,region_id})
+
+    search_region(new_map, region_id, sqr_num, new_pos ++ rest, [{row,col} | region], regions)
+  end
+
+
+  @total_sqrs 16384
+
+
+  def find_next_region(_, region_id, @total_sqrs, regions) do
+    {region_id-1, Enum.reverse(regions)}
+  end
+
+  def find_next_region(map, region_id, sqr_num, regions) do
+    row = div(sqr_num, 128)
+    col = rem(sqr_num, 128)
+
+    case map[{row,col}] do
+      {1,nil} -> search_region(map, region_id, sqr_num, [{row,col}], [], regions)
+      _       -> find_next_region(map, region_id, sqr_num+1, regions)
+    end
+  end
+  
+
+  def find_all_regions(map), do: find_next_region(map, 1, 0, [])
+end
+
+```
+
+```elixir
+number_squares_used =
+  0..127
+  |> Enum.reduce(0, fn row, sum ->
+        bits = Day14.make_row_bits(key_string, row)
+        sum + Enum.count(bits, fn b -> b == 1 end)
+      end)
+```
+
+```elixir
+map = Day14.make_usage_map(key_string)
+```
+
+```elixir
+{num_regions, regions} = Day14.find_all_regions(map)
+```
+
+```elixir
+{num_regions, Enum.count(regions)}
+```
+
+```elixir
+Enum.filter(regions, fn {_,region} -> Enum.member?(region, {5,0}) end)
+```

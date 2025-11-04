@@ -1,0 +1,119 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lengths =
+  input
+  |> Kino.Input.read()
+  |> String.split([","," "], trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day10 do
+  def apply([], list, skip_size, start), do: {list, start, skip_size, length(list)-start}
+
+  def apply([l | rest], list, skip_size, start) do
+    n = length(list)
+
+    reversed = Enum.reverse(Enum.take(list, l)) ++ Enum.drop(list, l)
+
+    offset = rem(l + skip_size, n)
+
+    new_list = Enum.drop(reversed, offset) ++ Enum.take(reversed, offset)
+
+    new_start = rem(start + offset, n)
+
+    #zero_pos = n - new_start
+
+    #IO.inspect({new_list, new_start, zero_pos})
+
+    apply(rest, new_list, skip_size+1, new_start)
+  end
+
+  def init_list(n), do: (for i <- 0..(n-1), do: i)
+
+  def run(lengths, n), do: apply(lengths, init_list(n), 0, 0)
+
+
+  def run_rounds(0, _, list, _, start) do
+    zero_pos = length(list) - start
+    Enum.drop(list, zero_pos) ++ Enum.take(list, zero_pos)
+  end
+
+  def run_rounds(rounds, lengths, list, skip_size, start) do
+    {new_list, new_start, new_skip_size, _} = apply(lengths, list, skip_size, start)
+
+    run_rounds(rounds-1, lengths, new_list, new_skip_size, new_start)
+  end
+
+  def run_rounds(lengths, n, rounds), do: run_rounds(rounds, lengths, init_list(n), 0, 0)
+
+  def make_dense_hash(sparse_hash) do
+    {_,dense_hash} =
+      1..16
+      |> Enum.reduce({sparse_hash, []}, fn _,{sprs, dens} ->
+        chunk = Enum.take(sprs, 16)
+        xor = Enum.reduce(chunk, 0, fn x, acc -> Bitwise.bxor(x, acc) end)
+        {Enum.drop(sprs,16), [xor | dens]}
+      end)
+
+    Enum.reverse(dense_hash)
+  end
+
+  def to_hex(hash) do
+    Enum.reduce(hash, "", fn x,str ->
+      bin = <<x::integer-size(16)>>
+      hex = Base.encode16(bin, case: :lower)
+      str <> String.slice(hex, 2, 2)
+    end)
+  end
+end
+```
+
+```elixir
+{list, start, skip_size, zero_pos} = Day10.run(lengths, 256)
+```
+
+```elixir
+Enum.at(list, zero_pos) * Enum.at(list, zero_pos+1)
+```
+
+```elixir
+input_part2 = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+ascii =
+  input_part2
+  |> Kino.Input.read()
+  |> to_charlist()
+  |> IO.inspect(charlists: :as_lists)
+```
+
+```elixir
+ascii_lengths = ascii ++ [17, 31, 73, 47, 23]
+```
+
+```elixir
+sparse_hash = ascii_lengths |> Day10.run_rounds(256, 64)
+```
+
+```elixir
+dense_hash = Day10.make_dense_hash(sparse_hash)
+```
+
+```elixir
+Day10.to_hex(dense_hash)
+```

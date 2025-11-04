@@ -1,0 +1,104 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[line] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+init =
+  line
+    |> String.split([" ", "\t"], trim: true)
+    |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day06 do
+  def make_mem(init) do
+    init
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {n,i}, mem -> Map.put(mem, i, n) end)
+  end
+
+  def redistribute(mem) do
+    n = map_size(mem)
+
+    {i_max, v_max} = Enum.max_by(mem, fn {_,v} -> v end)
+
+    all_get = div(v_max, n)
+    num_rem = rem(v_max, n)
+
+    mem0 = Map.replace!(mem, i_max, 0)
+
+    mem1 =
+      case all_get > 0 do
+        true -> Enum.map(mem0, fn {i,v} -> {i, v + all_get} end)
+        _    -> mem0
+      end
+      |> Enum.into(%{})
+
+    mem2 =
+      case num_rem > 0 do
+        true -> Enum.reduce(1..num_rem, mem1, fn j,acc ->
+                  i = rem(i_max + j, n)
+                  Map.replace!(acc, i, acc[i] + 1)
+                end)
+        _    -> mem1
+      end
+
+    mem2
+  end
+
+  def make_past(mem) do
+    mem
+    |> Enum.into([])
+    |> Enum.sort_by(fn {i,_} -> i end)
+  end
+
+  def find_recurrence(mem, past, cnt) do
+    new_mem = redistribute(mem)
+
+    new_cnt = cnt + 1
+
+    new_past = make_past(new_mem)
+
+    case Enum.member?(past, new_past) do
+      true -> index = Enum.find_index(Enum.reverse(past), fn p -> p == new_past end)
+              {new_cnt, new_cnt - index}
+      _    -> find_recurrence(new_mem, [new_past | past], new_cnt)
+    end
+  end
+
+  def find_recurrence(init) do
+    mem0 = make_mem(init)
+
+    past = make_past(mem0)
+
+    find_recurrence(mem0, [past], 0)
+  end
+end
+```
+
+```elixir
+mem0 = Day06.make_mem(init)
+```
+
+```elixir
+mem1 = Day06.redistribute(mem0)
+```
+
+```elixir
+Day06.find_recurrence(init)
+```

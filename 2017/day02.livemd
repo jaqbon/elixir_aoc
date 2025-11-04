@@ -1,0 +1,51 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, [" ", "\t"], trim: true))
+  |> Enum.map(fn strs -> Enum.map(strs, fn c -> String.to_integer(c) end) end)
+```
+
+```elixir
+lines
+|> Enum.reduce(0, fn line, sum -> sum + Enum.max(line) - Enum.min(line) end)
+```
+
+```elixir
+defmodule Day02 do
+  def find_divisible_ratio([a | rest]) do
+    val =
+      Enum.reduce_while(rest, 0, fn b,_ ->
+        case rem(b, a) do
+          0 -> {:halt, b}
+          _ -> {:cont, 0}
+        end
+      end)
+    
+    case val do
+      0 -> find_divisible_ratio(rest)
+      b -> div(b, a)
+    end
+  end
+end
+```
+
+```elixir
+Enum.reduce(lines, 0, fn line, sum ->
+  sum + Day02.find_divisible_ratio(Enum.sort(line)) end)
+```

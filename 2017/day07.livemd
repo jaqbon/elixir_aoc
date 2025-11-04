@@ -1,0 +1,162 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.replace(&1, ["(",")",",","->"], ""))
+  |> Enum.map(&String.split(&1, " ", trim: true))
+```
+
+```elixir
+defmodule Day07 do
+  def add_entry(map, [name, weight_str | rest]) do
+    Map.put(map, name, {String.to_integer(weight_str), 0, 0, rest})
+  end
+    
+  def make_disk_map(lines) do
+    Enum.reduce(lines, %{}, fn line, map -> add_entry(map, line) end)
+  end
+
+  def get_all_disks(map), do: Map.keys(map)
+
+  def get_all_supported(map), do: Enum.reduce(map, [], fn {_, {_,_,_,s}}, acc -> s ++ acc end)
+
+  def find_base(map) do
+    all_disks = get_all_disks(map)
+
+    all_supported = get_all_supported(map)
+
+    [base] = Enum.reject(all_disks, fn d -> Enum.member?(all_supported, d) end)
+
+    base
+  end
+
+  def make_weights(map, disk) do
+    {self, _,_, children} = map[disk]
+
+    case children do
+      [] ->
+        Map.replace(map, disk, {self, 0, self, []})
+      _  ->
+        new_map = Enum.reduce(children, map, fn d,m -> make_weights(m, d) end)
+        supported = Enum.reduce(children, 0, fn c,s -> {_,_,t,_} = new_map[c]; s+t end)
+        Map.replace!(new_map, disk, {self, supported, self+supported, children})
+    end
+  end
+
+  def is_balanced?(map, disk) do
+    {_,_,_, children} = map[disk]
+
+    case children do
+      [] -> true
+      _  ->
+        n =
+          children
+          |> Enum.map(fn c -> {_,_,t,_} = map[c]; t end)
+          #|> IO.inspect()
+          |> Enum.uniq()
+          |> length()
+        n == 1
+    end
+  end
+
+  def get_child_weights(map, disk) do
+    {_,_,_,children} = map[disk]
+
+    Enum.map(children, fn c -> {_,_,t,_} = map[c]; {c,t} end)
+  end
+
+  def find_next_unbalanced(map, disk) do
+    case is_balanced?(map, disk) do
+      true -> nil
+      _    ->
+        child_weights = get_child_weights(map, disk)
+
+        [{uniq_weight,_}] =
+          child_weights
+          |> Enum.frequencies_by(fn {_,t} -> t end)
+          |> Enum.filter(fn {_,n} -> n == 1 end)
+
+        [{bad_disk, bad_weight}] =
+          child_weights
+          |> Enum.filter(fn {_,w} -> w == uniq_weight end)
+
+        {_,good_weight} =
+          child_weights
+          |> Enum.filter(fn {_,w} -> w != uniq_weight end)
+          |> Enum.at(0)
+
+        {bad_disk, bad_weight, good_weight}
+    end
+  end
+
+  def find_bad_disk(map, disk, last_unbalanced) do
+    case find_next_unbalanced(map, disk) do
+      nil -> last_unbalanced
+      next ->
+        {next_disk,_,_} = next
+        find_bad_disk(map, next_disk, next)
+    end
+  end
+
+  def fix_bad_disk(map, base) do
+    next = find_next_unbalanced(map, base)
+
+    {next_disk,_,_} = next
+
+    {bad_disk, bad_weight, good_weight} = find_bad_disk(map, next_disk, next)
+
+    {old_weight,_,_,_} = map[bad_disk]
+
+    new_weight = old_weight - (bad_weight - good_weight)
+
+    {bad_disk, new_weight}
+  end
+end
+```
+
+```elixir
+disks = Day07.make_disk_map(lines)
+```
+
+```elixir
+all_disks = Day07.get_all_disks(disks)
+```
+
+```elixir
+supported = Day07.get_all_supported(disks)
+```
+
+```elixir
+base = Day07.find_base(disks)
+```
+
+```elixir
+weights = Day07.make_weights(disks, base)
+```
+
+```elixir
+Day07.is_balanced?(weights, base)
+```
+
+```elixir
+Day07.find_next_unbalanced(weights, base)
+```
+
+```elixir
+Day07.fix_bad_disk(weights, base)
+```

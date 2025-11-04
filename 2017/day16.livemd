@@ -1,0 +1,90 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+  input
+  |> Kino.Input.read()
+  #|> String.split("\n", trim: true)
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.split(&1, "/", trim: true))
+
+```
+
+```elixir
+defmodule Day16 do
+  def make_move([str]) do
+    ["s", String.to_integer(String.slice(str,1,2))]
+  end
+
+  def make_move([str1, str2]) do
+    case String.first(str1) do
+      "x" -> ["x", String.to_integer(String.slice(str1,1,2)), String.to_integer(str2)]
+      "p" -> ["p", String.slice(str1,1,1), str2]
+    end
+  end
+
+  def make_moves(input) do
+    input
+    |> Kino.Input.read()
+    #|> String.split("\n", trim: true)
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.split(&1, "/", trim: true))
+    |> Enum.reduce([], fn strs, mvs -> [make_move(strs) | mvs] end)
+    |> Enum.reverse()
+  end
+
+  def make_init_string(n) do
+    97..(97+n-1)
+    |> Enum.to_list()
+    |> List.to_string()
+    |> String.graphemes()
+  end
+
+  def move(["s", n], list) do
+    l = length(list)
+    Enum.drop(list, l-n) ++ Enum.take(list, l-n)
+  end
+
+  def move(["x", n1, n2], list) do
+    mn = min(n1,n2)
+    mx = max(n1,n2)
+    left  = Enum.take(list, mn)
+    mid   = Enum.slice(list, mn+1, mx-mn-1)
+    right = Enum.drop(list, mx+1)
+
+    left ++ [Enum.at(list, n2)] ++ mid ++ [Enum.at(list, n1)] ++ right
+  end
+
+  def move(["p", c1, c2], list) do
+    n1 = Enum.find_index(list, fn c -> c == c1 end)
+    n2 = Enum.find_index(list, fn c -> c == c2 end)
+
+    move(["x", n1, n2], list)
+  end
+
+  def do_move([], list), do: to_string(list)
+
+  def do_move([move | rest], list), do: do_move(rest, move(move, list))
+
+  def dance(moves, len), do: do_move(moves, make_init_string(len))
+end
+```
+
+```elixir
+moves = Day16.make_moves(input)
+```
+
+```elixir
+Day16.dance(moves, 16)
+```

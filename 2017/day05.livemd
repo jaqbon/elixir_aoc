@@ -1,0 +1,51 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+jmps =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day05 do
+  def make_code(jmps) do
+    jmps
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {jmp, indx}, code -> Map.put(code, indx, jmp) end)
+  end
+
+  def execute(code, indx, cnt) do
+    jmp = code[indx]
+
+    case jmp do
+      nil -> cnt
+      _   -> jmp_step = if jmp >= 3, do: -1, else: 1 # jmp_step = 1 for part 1
+             execute(Map.put(code, indx, jmp+jmp_step), indx+jmp, cnt+1)
+    end
+  end
+
+  def execute(code), do: execute(code, 0, 0)
+end
+```
+
+```elixir
+code = Day05.make_code(jmps)
+```
+
+```elixir
+Day05.execute(code)
+```

@@ -1,0 +1,133 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day18_Part1 do
+  def make_program_and_registers(lines) do
+    program =
+      lines
+      |> Enum.map(&String.split(&1, " ", trim: true))
+      |> Enum.with_index()
+      |> Enum.reduce(%{}, fn {inst, i}, prg -> Map.put(prg, i, inst) end)
+
+    registers =
+      program
+      |> Enum.reduce(%{}, fn {_,[_, x | _]}, reg ->
+            Map.put_new(reg, x, 0)
+          end)
+
+    {program, registers}
+  end
+
+
+  def execute(["snd", x], reg, _, pc) do
+    {reg, reg[x], pc+1}
+  end
+
+  def execute(["set", x, y], reg, last, pc) do
+    val =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, x, val), last, pc+1}
+  end
+
+  def execute(["add", x, y], reg, last, pc) do
+    val =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, x, reg[x]+val), last, pc+1}
+  end
+
+  def execute(["mul", x, y], reg, last, pc) do
+    val =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, x, reg[x]*val), last, pc+1}
+  end
+
+  def execute(["mod", x, y], reg, last, pc) do
+    val =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, x, rem(reg[x],val)), last, pc+1}
+  end
+
+  def execute(["rcv", x], reg, last, pc) do
+    next_pc =
+      case reg[x] do
+        0 -> pc+1
+        _ -> -1
+      end
+
+    {reg, last, next_pc}
+  end
+
+  def execute(["jgz", x, y], reg, last, pc) do
+    val =
+      case reg[x] > 0 do
+        true ->
+          case Integer.parse(y) do
+            :error -> reg[y]
+            {n,_}  -> n
+          end
+        false -> 1
+      end
+
+    {reg, last, pc+val}
+  end
+
+
+  def run(program, registers, last_freq, program_counter) do
+    case program[program_counter] do
+      nil         ->  {last_freq, registers}
+      instruction ->  #IO.inspect(instruction)
+                      {regs, last, pc} = execute(instruction, registers, last_freq, program_counter)
+                      run(program, regs, last, pc)
+    end
+  end
+
+  def run(lines) do
+    {program, registers} = make_program_and_registers(lines)
+
+    run(program, registers, nil, 0)
+  end
+end
+```
+
+```elixir
+Day18_Part1.make_program_and_registers(lines)
+```
+
+```elixir
+Day18_Part1.run(lines)
+```

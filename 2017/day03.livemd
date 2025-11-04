@@ -1,0 +1,158 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day03 do
+  def horz(nmax, step, sgn, x, y, n) do
+    case nmax <= n + step do
+      true -> {x + sgn*(nmax - n), y}
+        _  -> vert(nmax, step, sgn, x + sgn*step, y, n + step)
+    end
+  end
+
+  def vert(nmax, step, sgn, x, y, n) do
+    case nmax <= n + step do
+      true -> {x, y + sgn*(nmax - n)}
+        _  -> horz(nmax, step+1, -sgn, x, y + sgn*step, n + step)
+    end
+  end
+
+  def get_pos(n), do: horz(n-1, 1, 1, 0, 0, 0)
+
+  def manhattan(n) do
+    {x,y} = get_pos(n)
+
+    abs(x) + abs(y)
+    end
+
+
+  def get_val(xy, mem), do: (if mem[xy] == nil, do: 0, else: mem[xy])
+
+
+  def store_right(max_val, step, x0, y, mem0) do
+    {done, result} =
+      1..step
+      |> Enum.reduce_while({false, mem0}, fn i, {_, mem} ->
+        x = x0 + i
+        xys = [{x-1,y}, {x-1,y+1}, {x,y+1}, {x+1,y+1}]
+        store_val =
+          xys
+          |> Enum.map(&get_val(&1, mem))
+          |> Enum.sum()
+
+        case store_val > max_val do
+          true -> {:halt, {true, store_val}}
+          _    -> {:cont, {false, Map.put(mem, {x,y}, store_val)}}
+        end
+      end)
+      
+      case done do
+       true -> result
+       _    -> store_up(max_val, step, x0+step, y, result)
+      end
+  end
+
+
+  def store_up(max_val, step, x, y0, mem0) do
+    {done, result} =
+      1..step
+      |> Enum.reduce_while({false, mem0}, fn i, {_, mem} ->
+        y = y0 + i
+        xys = [{x,y-1}, {x-1,y-1}, {x-1,y}, {x-1,y+1}]
+
+        store_val =
+          xys
+          |> Enum.map(&get_val(&1, mem))
+          |> Enum.sum()
+
+          case store_val > max_val do
+            true -> {:halt, {true, store_val}}
+            _    -> {:cont, {false, Map.put(mem, {x,y}, store_val)}}
+          end
+      end)
+      
+      case done do
+       true -> result
+       _    -> store_left(max_val, step+1, x, y0+step, result)
+      end
+  end
+
+
+  def store_left(max_val, step, x0, y, mem0) do
+    {done, result} =
+      1..step
+      |> Enum.reduce_while({false, mem0}, fn i, {_, mem} ->
+        x = x0 - i
+        xys = [{x+1,y}, {x+1,y-1}, {x,y-1}, {x-1,y-1}]
+        store_val =
+          xys
+          |> Enum.map(&get_val(&1, mem))
+          |> Enum.sum()
+
+        case store_val > max_val do
+          true -> {:halt, {true, store_val}}
+          _    -> {:cont, {false, Map.put(mem, {x,y}, store_val)}}
+        end
+      end)
+      
+      case done do
+       true -> result
+       _    -> store_down(max_val, step, x0-step, y, result)
+      end
+  end
+
+
+  def store_down(max_val, step, x, y0, mem0) do
+    {done, result} =
+      1..step
+      |> Enum.reduce_while({false, mem0}, fn i, {_, mem} ->
+        y = y0 - i
+        xys = [{x,y+1}, {x+1,y+1}, {x+1,y}, {x+1,y-1}]
+
+        store_val =
+          xys
+          |> Enum.map(&get_val(&1, mem))
+          |> Enum.sum()
+
+          case store_val > max_val do
+            true -> {:halt, {true, store_val}}
+            _    -> {:cont, {false, Map.put(mem, {x,y}, store_val)}}
+          end
+      end)
+      
+      case done do
+       true -> result
+       _    -> store_right(max_val, step+1, x, y0-step, result)
+      end
+  end
+
+
+  def get_last_store(max_val), do: store_right(max_val, 1, 0, 0, Map.put(%{}, {0,0}, 1))
+end
+```
+
+```elixir
+Day03.manhattan(312051)
+```
+
+```elixir
+Day03.get_last_store(312051)
+```

@@ -1,0 +1,50 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+step = 3#328#
+```
+
+```elixir
+defmodule Day17 do
+#  @max_len 10
+  @max_len 2018
+
+  def insert(@max_len, current, list, _), do: {current, list}
+
+  def insert(len, current, list, step) do
+    index = rem(current + step, len) + 1
+    new_list = Enum.take(list, index) ++ [len] ++ Enum.drop(list, index)
+    #IO.inspect(new_list)
+    insert(len+1, index, new_list, step)
+  end
+
+  def run(step), do: insert(1, 0, [0], step)
+end
+```
+
+```elixir
+{current, list} = Day17.run(328)
+```
+
+```elixir
+Enum.at(list, current+1)
+```

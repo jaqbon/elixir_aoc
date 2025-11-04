@@ -1,0 +1,126 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1,"",trim: true))
+```
+
+```elixir
+defmodule Day22_Part1 do
+  def make_grid(lines) do
+    rows = length(lines)
+    cols = length(Enum.at(lines, 0))
+
+    {_, grid} =
+      Enum.reduce(lines, {div(rows-1,2) ,%{}}, fn line, {y,grid} ->
+        {_,new_grid} =
+          Enum.reduce(line, {-div(cols-1,2), grid}, fn c, {x, grid1} ->
+            case c do
+              "." -> {x+1, grid1}
+              "#" -> {x+1, Map.put(grid1, {x,y}, "#")}
+            end
+          end)
+  
+          {y-1, new_grid}
+        end)
+
+    grid
+  end
+
+
+  def update(grid, {x,y}=pos, {dx,dy}, count) do
+    case grid[pos] do
+      nil ->
+        new_dir = {-dy,dx}
+        {Map.put(grid, pos, "#"), {x-dy,y+dx}, new_dir, count+1}
+      "#" ->
+        new_dir = {dy,-dx}
+        {Map.delete(grid, pos), {x+dy,y-dx}, new_dir, count}
+    end
+  end
+
+  def run(0, _,_,_, count), do: count
+
+  def run(bursts, grid, pos, dir, count) do
+    {new_grid, new_pos, new_dir, new_count} = update(grid, pos, dir, count)
+
+    run(bursts-1, new_grid, new_pos, new_dir, new_count)
+  end
+
+  def run(lines, bursts), do: run(bursts, make_grid(lines), {0,0}, {0,1}, 0)
+end
+```
+
+```elixir
+Day22_Part1.run(lines, 10000)
+```
+
+```elixir
+defmodule Day22_Part2 do
+  def make_grid(lines) do
+    rows = length(lines)
+    cols = length(Enum.at(lines, 0))
+
+    {_, grid} =
+      Enum.reduce(lines, {div(rows-1,2) ,%{}}, fn line, {y,grid} ->
+        {_,new_grid} =
+          Enum.reduce(line, {-div(cols-1,2), grid}, fn c, {x, grid1} ->
+            case c do
+              "." -> {x+1, grid1}
+              "#" -> {x+1, Map.put(grid1, {x,y}, "#")}
+            end
+          end)
+  
+          {y-1, new_grid}
+        end)
+
+    grid
+  end
+
+
+  def update(grid, {x,y}=pos, {dx,dy}=dir, count) do
+    case grid[pos] do
+      nil ->
+        new_dir = {-dy,dx}
+        {Map.put(grid, pos, "W"), {x-dy,y+dx}, new_dir, count}
+      "W" ->
+        {Map.replace!(grid, pos, "#"), {x+dx,y+dy}, dir, count+1}
+      "#" ->
+        new_dir = {dy,-dx}
+        {Map.put(grid, pos, "F"), {x+dy,y-dx}, new_dir, count}
+      "F" ->
+        new_dir = {-dx,-dy}
+        {Map.delete(grid, pos), {x-dx,y-dy}, new_dir, count}
+    end
+  end
+
+  def run(0, _,_,_, count), do: count
+
+  def run(bursts, grid, pos, dir, count) do
+    {new_grid, new_pos, new_dir, new_count} = update(grid, pos, dir, count)
+
+    run(bursts-1, new_grid, new_pos, new_dir, new_count)
+  end
+
+  def run(lines, bursts), do: run(bursts, make_grid(lines), {0,0}, {0,1}, 0)
+end
+```
+
+```elixir
+Day22_Part2.run(lines, 10000000)
+```

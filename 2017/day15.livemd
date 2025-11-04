@@ -1,0 +1,78 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+#Mix.install([
+#  {:kino, "~> 0.16.1"}
+#])
+```
+
+```elixir
+#input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+#lines =
+#  input
+#  |> Kino.Input.read()
+#  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day15 do
+  def update({a,b}), do: {rem(16807*a,2147483647), rem(48271*b,2147483647)}
+
+  def match?({a,b}), do: (if (rem(a,65536) == rem(b,65536)), do: 1, else: 0)
+
+  def count_matches(0, _, count), do: count
+
+  def count_matches(trials, ab, count) do
+    count_matches(trials-1, update(ab), count+match?(ab))
+  end
+
+  #@start {65, 8921}
+  @start {516, 190}
+
+  def count_matches(trials), do: count_matches(trials, @start, 0)
+
+
+
+  def update_a(a) do
+    new_a = rem(16807*a,2147483647)
+    case rem(new_a, 4) do
+      0 -> new_a
+      _ -> update_a(new_a)
+    end
+  end
+
+  def update_b(b) do
+    new_b = rem(48271*b,2147483647)
+    case rem(new_b, 8) do
+      0 -> new_b
+      _ -> update_b(new_b)
+    end
+  end
+
+  def new_update({a,b}), do: {update_a(a), update_b(b)}
+
+  def new_count_matches(0, _, count), do: count
+
+  def new_count_matches(trials, ab, count) do
+    new_count_matches(trials-1, new_update(ab), count+match?(ab))
+  end
+
+  #@start {65, 8921}
+  @start {516, 190}
+
+  def new_count_matches(trials), do: new_count_matches(trials, @start, 0)
+end
+```
+
+```elixir
+Day15.count_matches(40_000_000)
+```
+
+```elixir
+Day15.new_count_matches(5_000_000)
+```

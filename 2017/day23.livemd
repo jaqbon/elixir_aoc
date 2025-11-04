@@ -1,0 +1,164 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day23 do
+  def make_program_and_registers(lines) do
+    program =
+      lines
+      |> Enum.map(&String.split(&1, " ", trim: true))
+#    |> Enum.map(fn strs ->
+#          Enum.map(strs, fn str ->
+#            case Integer.parse(str) do
+#              :error -> str
+#              {n, _} -> n
+#            end
+#          end)
+#        end)
+      |> Enum.with_index()
+      |> Enum.reduce(%{}, fn {inst, i}, prg -> Map.put(prg, i, inst) end)
+
+    registers =
+      program
+      |> Enum.reduce(%{}, fn {_,[_, x | _]}, reg ->
+            Map.put_new(reg, x, 0)
+          end)
+
+    {program, registers}
+  end
+
+
+  def execute(["set", x, y], reg, pc, cnt) do
+    val =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, x, val), pc+1, cnt}
+  end
+
+  def execute(["sub", x, y], reg, pc, cnt) do
+    val =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, x, reg[x]-val), pc+1, cnt}
+  end
+
+  def execute(["mul", x, y], reg, pc, cnt) do
+    val =
+      case Integer.parse(y) do
+        :error -> reg[y]
+        {n,_}  -> n
+      end
+
+    {Map.replace!(reg, x, reg[x]*val), pc+1, cnt+1}
+  end
+
+  def execute(["jnz", x, y], reg, pc, cnt) do
+    test =
+      case Integer.parse(x) do
+        :error -> reg[x]
+        {t,_}  -> t
+      end
+
+    val =
+      case test != 0 do
+        true ->
+          case Integer.parse(y) do
+            :error -> reg[y]
+            {n,_}  -> n
+          end
+        false -> 1
+      end
+
+    {reg, pc+val, cnt}
+  end
+
+
+  def run(program, registers, program_counter, mul_count) do
+    case program[program_counter] do
+      nil         ->  {mul_count, registers}
+      instruction ->  IO.inspect({program_counter, registers})
+                      {regs, pc, cnt} = execute(instruction, registers, program_counter, mul_count)
+                      run(program, regs, pc, cnt)
+    end
+  end
+
+  def run(lines) do
+    {program, registers} = make_program_and_registers(lines)
+
+    run(program, registers, 0, 0)
+  end
+
+  def run2(lines) do
+    {program, registers} = make_program_and_registers(lines)
+
+    run(program, Map.replace!(registers, "a", 1), 0, 0)
+  end
+
+
+  def step({program, registers, program_counter, mul_count}) do
+    case program[program_counter] do
+      nil         ->  {nil, registers, program_counter, mul_count}
+      instruction ->  #IO.inspect({program_counter, registers})
+                      {regs, pc, cnt} = execute(instruction, registers, program_counter, mul_count)
+                      {program, regs, pc, cnt}
+    end
+  end
+
+
+  def start(lines) do
+    {program, registers} = make_program_and_registers(lines)
+
+    step({program, Map.replace!(registers, "a", 1), 0, 0})
+  end
+end
+
+```
+
+```elixir
+{program, registers} = Day23.make_program_and_registers(lines)
+```
+
+```elixir
+#Day23.run(lines)
+```
+
+```elixir
+lines
+|> Day23.start()
+|> Day23.step()
+|> Day23.step()
+|> Day23.step()
+|> Day23.step()
+|> Day23.step()
+|> Day23.step()
+|> Day23.step()
+|> Day23.step()
+```
+
+```elixir
+Day23.run2(lines)
+```

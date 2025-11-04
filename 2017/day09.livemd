@@ -1,0 +1,67 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+line =
+  input
+  |> Kino.Input.read()
+  |> String.split("", trim: true)
+```
+
+```elixir
+defmodule Day09 do
+  def remove_garbage(:out, [], clean, count), do: {Enum.reverse(clean), count}
+
+  def remove_garbage(:out, ["<" | rest], clean, count) do
+    remove_garbage(:in, rest, clean, count)
+  end
+
+  def remove_garbage(:out, [c | rest], clean, count) do
+    remove_garbage(:out, rest, [c | clean], count)
+  end
+
+  def remove_garbage(:in, [">" | rest], clean, count) do
+    remove_garbage(:out, rest, clean, count)
+  end
+
+  def remove_garbage(:in, ["!", _ | rest], clean, count) do
+    remove_garbage(:in, rest, clean, count)
+  end
+
+  def remove_garbage(:in, [_ | rest], clean, count) do
+    remove_garbage(:in, rest, clean, count+1)
+  end
+  
+  def remove_garbage(line), do: remove_garbage(:out, line, [], 0)
+
+
+  def score([], _, total), do: total
+
+  def score(["{" | rest], depth, total), do: score(rest, depth+1, total)
+
+  def score(["}" | rest], depth, total), do: score(rest, depth-1, total+depth)
+
+  def score([_ | rest], depth, total), do: score(rest, depth, total)
+
+  def score(line), do: score(line, 0, 0)
+end
+```
+
+```elixir
+{clean, count} = Day09.remove_garbage(line)
+```
+
+```elixir
+Day09.score(clean)
+```

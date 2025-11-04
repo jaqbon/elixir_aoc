@@ -1,0 +1,58 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " ", trim: true))
+```
+
+```elixir
+defmodule Day04 do
+  def is_valid?(line) do
+    sorted = Enum.sort(line)
+    sorted == Enum.uniq(sorted)
+  end
+
+  def get_valid(lines) do
+    lines
+    |> Enum.filter(fn line -> is_valid?(line) end)
+  end
+
+  def is_valid_too?(line) do
+    sorted =
+      line
+      |> Enum.map(&String.graphemes(&1))
+      |> Enum.map(&Enum.sort(&1))
+
+    sorted == Enum.uniq(sorted)
+  end
+
+  def get_valid_too(lines) do
+    lines
+    |> get_valid()
+    |> Enum.filter(fn line -> is_valid_too?(line) end)
+  end
+end
+```
+
+```elixir
+Day04.get_valid(lines) |> Enum.count()
+```
+
+```elixir
+Day04.get_valid_too(lines) |> Enum.count()
+```

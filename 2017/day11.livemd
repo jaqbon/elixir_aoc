@@ -1,0 +1,75 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[steps] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1,",", trim: true))
+```
+
+```elixir
+defmodule Day11 do
+  def step("n",  {x,y}), do: {x,y+2}
+  def step("s",  {x,y}), do: {x,y-2}
+  def step("ne", {x,y}), do: {x+1,y+1}
+  def step("se", {x,y}), do: {x+1,y-1}
+  def step("nw", {x,y}), do: {x-1,y+1}
+  def step("sw", {x,y}), do: {x-1,y-1}
+
+
+  def follow_path([], pos), do: pos
+
+  def follow_path([dir | rest], pos), do: follow_path(rest, step(dir, pos))
+
+  def follow_path(steps), do: follow_path(steps, {0,0})
+
+
+  def distance({x,y}) do
+    x_offset = abs(x)
+    y_offset = abs(y)
+
+    case y_offset <= x_offset do
+      true  -> x_offset
+      false -> x_offset + div(y_offset-x_offset, 2)
+    end
+  end
+
+
+  def record_path([], path), do: Enum.reverse(path)
+
+  def record_path([dir | rest], [pos | _] = path) do
+    record_path(rest, [step(dir, pos) | path])
+  end
+
+  def record_path(steps), do: record_path(steps, [{0,0}])
+end
+```
+
+```elixir
+pos = Day11.follow_path(steps)
+```
+
+```elixir
+Day11.distance(pos)
+```
+
+```elixir
+path = Day11.record_path(steps)
+```
+
+```elixir
+Enum.map(path, fn pos -> Day11.distance(pos) end) |> Enum.max()
+```

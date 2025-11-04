@@ -1,0 +1,83 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+instructions =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " ", trim: true))
+```
+
+```elixir
+defmodule Day08 do
+  def init_registers_and_code(instructions) do
+    registers =
+      instructions
+      |> Enum.reduce(%{}, fn [r1,_,_,_,r2,_,_], regs ->
+            Map.put_new(regs, r1, 0) |> Map.put_new(r2, 0)
+          end)
+
+    code =
+      instructions
+      |> Enum.map(fn [r1,type,amt,_,r2,comp,val] ->
+          {{r1,type,String.to_integer(amt)},{r2,comp,String.to_integer(val)}} end)
+
+    {registers, code}
+  end
+
+
+  def do_test({reg, ">", val}, registers), do: registers[reg] > val
+  def do_test({reg, "<", val}, registers), do: registers[reg] < val
+
+  def do_test({reg, ">=", val}, registers), do: registers[reg] >= val
+  def do_test({reg, "<=", val}, registers), do: registers[reg] <= val
+
+  def do_test({reg, "==", val}, registers), do: registers[reg] == val
+  def do_test({reg, "!=", val}, registers), do: registers[reg] != val
+
+
+  def do_action({reg, "inc", amt}, registers), do: Map.replace!(registers, reg, registers[reg]+amt)
+  def do_action({reg, "dec", amt}, registers), do: Map.replace!(registers, reg, registers[reg]-amt)
+
+
+  def execute_next([], registers, max_val), do: {registers, max_val}
+
+  def execute_next([{action, test} | rest], registers, max_val) do
+    new_registers =
+      case do_test(test, registers) do
+        true  -> do_action(action, registers)
+        false -> registers
+      end
+
+    new_max_val = max(max_val, Enum.max(Map.values(new_registers)))
+
+    execute_next(rest, new_registers, new_max_val)
+  end
+
+  def execute(code, registers), do: execute_next(code, registers, 0)
+end
+```
+
+```elixir
+{registers, code} = Day08.init_registers_and_code(instructions)
+```
+
+```elixir
+{final_registers, max_register_val} = Day08.execute(code, registers)
+```
+
+```elixir
+Enum.max(Map.values(final_registers))
+```

@@ -1,0 +1,57 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, [":"," "], trim: true))
+  |> Enum.map(&Enum.map(&1, fn s -> String.to_integer(s) end))
+```
+
+```elixir
+Enum.reduce(lines, 0, fn [depth, range], severity ->
+  case rem(depth, 2*(range-1)) do
+    0 -> severity + depth*range
+    _ -> severity
+  end
+end)
+```
+
+```elixir
+defmodule Day13 do
+  def find_delay(lines, delay) do
+    caught =
+      lines
+      |> Enum.reduce_while(false, fn [depth, range],_ ->
+            case rem(delay+depth, 2*(range-1)) do
+              0 -> {:halt, true}
+              _ -> {:cont, false}
+            end
+      end)
+
+    case caught do
+      true -> find_delay(lines, delay+1)
+      _    -> delay
+    end
+  end
+
+  def find_delay(lines), do: find_delay(lines, 0)
+end
+```
+
+```elixir
+Day13.find_delay(lines)
+```
