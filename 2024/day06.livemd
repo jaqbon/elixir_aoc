@@ -1,0 +1,228 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+dims = {length(lines), length(List.first(lines))}
+```
+
+```elixir
+defmodule Day06_Part1 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def make_character_list(grid, c) do
+    # into: %{}, do: {key, value}
+    for {key, ^c} <- grid, do: key
+  end
+
+  def step_direction("^"), do: {-1, 0}
+  def step_direction(">"), do: {0, 1}
+  def step_direction("v"), do: {1, 0}
+  def step_direction("<"), do: {0, -1}
+
+  def rotate_right({-1, 0}), do: {0, 1}
+  def rotate_right({0, 1}), do: {1, 0}
+  def rotate_right({1, 0}), do: {0, -1}
+  def rotate_right({0, -1}), do: {-1, 0}
+
+  def find_path_start(path) do
+    path
+    |> Enum.find(fn {_key, val} ->
+      val == "^" or val == ">" or val == "v" or val == "<"
+    end)
+    |> elem(0)
+  end
+
+  def take_step({r, c}, {dr, dc}), do: {r + dr, c + dc}
+
+  def out_of_bounds({rows, cols}, {r, c}) do
+    r == -1 or r == rows or c == -1 or c == cols
+  end
+
+  def walk_path(path, dims, position, direction, list0) do
+    next_position = take_step(position, direction)
+
+    list = [{position, direction} | list0]
+
+    if out_of_bounds(dims, next_position) do
+      list
+    else
+      case path[next_position] do
+        "#" ->
+          walk_path(path, dims, position, rotate_right(direction), list)
+
+        "X" ->
+          walk_path(Map.put(path, position, "X"), dims, next_position, direction, list)
+
+        "." ->
+          walk_path(Map.put(path, position, "X"), dims, next_position, direction, list)
+      end
+    end
+  end
+
+  def walk_path(path, dims) do
+    position = find_path_start(path)
+
+    direction = step_direction(path[position])
+
+    walk_path(Map.put(path, position, "X"), dims, position, direction, [])
+  end
+end
+```
+
+```elixir
+grid = Day06_Part1.make_grid(lines)
+```
+
+```elixir
+path = grid
+```
+
+```elixir
+part1_path = Day06_Part1.walk_path(path, dims)
+
+part1_path |> Enum.uniq_by(fn {pos, _} -> pos end) |> Enum.count()
+```
+
+```elixir
+defmodule Day06_Part2 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def make_character_list(grid, c) do
+    # into: %{}, do: {key, value}
+    for {key, ^c} <- grid, do: key
+  end
+
+  def step_direction("^"), do: {-1, 0}
+  def step_direction(">"), do: {0, 1}
+  def step_direction("v"), do: {1, 0}
+  def step_direction("<"), do: {0, -1}
+
+  def rotate_right({-1, 0}), do: {0, 1}
+  def rotate_right({0, 1}), do: {1, 0}
+  def rotate_right({1, 0}), do: {0, -1}
+  def rotate_right({0, -1}), do: {-1, 0}
+
+  def find_path_start(path) do
+    path
+    |> Enum.find(fn {_key, val} ->
+      val == "^" or val == ">" or val == "v" or val == "<"
+    end)
+    |> elem(0)
+  end
+
+  def take_step({r, c}, {dr, dc}), do: {r + dr, c + dc}
+
+  def out_of_bounds({rows, cols}, {r, c}) do
+    r == -1 or r == rows or c == -1 or c == cols
+  end
+
+  def update_path({grid, dims, position, direction}) do
+    next_position = take_step(position, direction)
+
+    if out_of_bounds(dims, next_position) do
+      nil
+    else
+      case grid[next_position] do
+        "#" ->
+          {grid, dims, position, rotate_right(direction)}
+
+        "O" ->
+          {grid, dims, position, rotate_right(direction)}
+
+        _ ->
+          {grid, dims, next_position, direction}
+      end
+    end
+  end
+
+  def loop_or_die({_, _, p0, d0} = arg0, prev_path) do
+    arg = update_path(arg0)
+
+    if arg == nil do
+      false
+    else
+      {_, _, p, d} = arg
+      pd = {p, d}
+      # IO.inspect({new_position,new_direction})
+      if Enum.member?(prev_path, pd) do
+        true
+      else
+        new_path = if p == p0 and d != d0, do: [pd | prev_path], else: prev_path
+        loop_or_die(arg, new_path)
+      end
+    end
+  end
+
+  def find_loops(_, _, _, [_ | []], o_list), do: o_list
+
+  def find_loops(grid, dims, prev_path, [start, o | rest], o_list) do
+    {s_point, _} = start
+    {o_point, _} = o
+
+    new_prev_path = prev_path ++ [s_point]
+
+    new_next_path = [o | rest]
+
+    if Enum.member?(new_prev_path, o_point) do
+      find_loops(grid, dims, new_prev_path, new_next_path, o_list)
+    else
+      tmp_grid = Map.put(grid, o_point, "O")
+
+      {position, direction} = start
+      # IO.inspect(start, label: "start")
+      result = loop_or_die({tmp_grid, dims, position, direction}, [])
+
+      if result do
+        {o_pos, _} = o
+        new_o_list = [o_pos | o_list]
+        IO.inspect(o_pos)
+        # IO.inspect(new_path_list)
+        find_loops(grid, dims, new_prev_path, new_next_path, new_o_list)
+      else
+        find_loops(grid, dims, new_prev_path, new_next_path, o_list)
+      end
+    end
+  end
+
+  def find_loops(grid, dims, part1_path) do
+    start_to_end_path = Enum.reverse(part1_path)
+
+    find_loops(grid, dims, [], start_to_end_path, [])
+  end
+end
+```
+
+```elixir
+Day06_Part2.find_loops(grid, dims, part1_path) |> Enum.uniq() |> Enum.count()
+```

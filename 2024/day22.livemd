@@ -1,0 +1,74 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+initials =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day22 do
+  def mix(x, y), do: Bitwise.bxor(x, y)
+
+  def prune(x), do: rem(x, 16_777_216)
+
+  def mix_and_prune(x, y), do: mix(x, y) |> prune()
+
+  def next(x) do
+    y = mix_and_prune(x, 64 * x)
+    z = mix_and_prune(y, div(y, 32))
+    mix_and_prune(z, 2048 * z)
+  end
+
+  def loop(x, n) do
+    1..n
+    |> Enum.reduce(x, fn _, y -> next(y) end)
+  end
+
+  def keep(x, n) do
+    1..n
+    |> Enum.reduce([x], fn _, [y | rest] -> [next(y), y | rest] end)
+    |> Enum.reverse()
+  end
+
+  def ones(x), do: rem(x, 10)
+
+  def diff([_ | []], diffs), do: Enum.reverse(diffs)
+  def diff([x, y | rest], diffs), do: diff([y | rest], [y - x | diffs])
+  def diff([x | rest]), do: diff([x | rest], [x])
+end
+```
+
+```elixir
+Enum.map(initials, fn x -> Day22.loop(x, 2000) end) |> Enum.sum()
+```
+
+```elixir
+list =
+  Day22.keep(123, 9)
+  |> Enum.map(&Day22.ones(&1))
+
+Enum.chunk_every([0 | list], 2, 1)
+|> Enum.drop(-1)
+|> Enum.map(fn [x, y] -> y - x end)
+```
+
+```elixir
+Day22.keep(123, 9)
+|> Enum.map(&Day22.ones(&1))
+|> Day22.diff()
+```

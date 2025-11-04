@@ -1,0 +1,115 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  # , trim: true)
+  |> String.split("\n")
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+defmodule Day25 do
+  def chunk_fun(element, acc) do
+    if element == [] do
+      {:cont, Enum.reverse(acc), []}
+    else
+      {:cont, [element | acc]}
+    end
+  end
+
+  def after_fun(acc) do
+    case acc do
+      [] -> {:cont, []}
+      acc -> {:cont, Enum.reverse(acc), []}
+    end
+  end
+
+  def make_lock(rows, width, height) do
+    0..(height - 1)
+    |> Enum.reduce(%{}, fn h, acc1 ->
+      0..(width - 1)
+      |> Enum.reduce(acc1, fn w, acc2 ->
+        c = Enum.at(rows, h) |> Enum.at(w)
+
+        if c == "." do
+          if Map.has_key?(acc2, w), do: acc2, else: Map.put(acc2, w, h - 1)
+        else
+          acc2
+        end
+      end)
+    end)
+  end
+
+  def make_key(rows, width, height) do
+    0..(height - 1)
+    |> Enum.reduce(%{}, fn h, acc1 ->
+      0..(width - 1)
+      |> Enum.reduce(acc1, fn w, acc2 ->
+        c = Enum.at(rows, h) |> Enum.at(w)
+
+        if c == "#" do
+          if Map.has_key?(acc2, w), do: acc2, else: Map.put(acc2, w, height - h - 1)
+        else
+          acc2
+        end
+      end)
+    end)
+  end
+
+  def make_locks_and_keys(lines) do
+    lks =
+      lines
+      |> Enum.chunk_while([], &chunk_fun/2, &after_fun/1)
+
+    height = length(List.first(lks))
+    width = length(List.first(lks) |> List.first())
+
+    locks_and_keys =
+      Enum.reduce(lks, {[], []}, fn rows, {ls, ks} ->
+        case List.first(rows) |> List.first() do
+          "#" -> {[make_lock(rows, width, height) | ls], ks}
+          "." -> {ls, [make_key(rows, width, height) | ks]}
+        end
+      end)
+
+    {locks_and_keys, {width, height}}
+  end
+
+  def fits?(lock, key, {width, height}) do
+    0..(width - 1)
+    |> Enum.reduce_while(true, fn i, _ ->
+      if lock[i] + key[i] < height - 1, do: {:cont, true}, else: {:halt, false}
+    end)
+  end
+
+  def test_locks_and_keys({locks, keys}, dims) do
+    Enum.reduce(locks, 0, fn lock, num1 ->
+      Enum.reduce(keys, num1, fn key, num2 ->
+        if fits?(lock, key, dims), do: num2 + 1, else: num2
+      end)
+    end)
+  end
+end
+```
+
+```elixir
+{locks_and_keys, dims} = Day25.make_locks_and_keys(lines)
+```
+
+```elixir
+Day25.test_locks_and_keys(locks_and_keys, dims)
+```

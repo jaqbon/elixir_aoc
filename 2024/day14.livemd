@@ -1,0 +1,205 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+# dims = {11, 7}
+dims = {101, 103}
+
+{nx, ny} = dims
+{nx2, ny2} = {div(nx, 2), div(ny, 2)}
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+String.split("p=0,4 v=3,-3", " ", trim: true)
+|> Enum.map(&String.split(&1, ",", trim: true))
+```
+
+```elixir
+defmodule Day14 do
+  def make_positions_and_velocities(str) do
+    [[pxs, pys], [vxs, vys]] =
+      str
+      |> String.split(" ", trim: true)
+      |> Enum.map(&String.split(&1, ",", trim: true))
+
+    px = String.split(pxs, "=") |> Enum.at(-1) |> String.to_integer()
+    py = String.to_integer(pys)
+
+    vx = String.split(vxs, "=") |> Enum.at(-1) |> String.to_integer()
+    vy = String.to_integer(vys)
+
+    {{px, py}, {vx, vy}}
+  end
+
+  def position_after_time({{px0, py0}, {vx, vy}}, t, {nx, ny}) do
+    px = rem(rem(px0 + vx * t, nx) + nx, nx)
+    py = rem(rem(py0 + vy * t, ny) + ny, ny)
+
+    {px, py}
+  end
+
+  def quadrant({x, y}, {nx, ny}) do
+    nx2 = div(nx, 2)
+    ny2 = div(ny, 2)
+
+    case x == nx2 or y == ny2 do
+      true ->
+        nil
+
+      _ ->
+        {qx0, qy0} = {div(x, nx2), div(y, ny2)}
+
+        qx = if qx0 == 2, do: 1, else: qx0
+        qy = if qy0 == 2, do: 1, else: qy0
+
+        {qx, qy}
+    end
+  end
+
+  def display_ps(ps, {nx, ny}) do
+    Enum.reduce(0..(ny - 1), [], fn y, rows ->
+      row =
+        Enum.reduce(0..(nx - 1), [], fn x, r ->
+          if Enum.member?(ps, {x, y}), do: ["#" | r], else: ["." | r]
+        end)
+        |> Enum.reverse()
+        |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+
+  def display_ps_zoom(ps, {nx, ny}) do
+    ny2 = div(ny, 2)
+
+    Enum.reduce(ny2..(ny2 + 20), [], fn y, rows ->
+      row =
+        Enum.reduce(0..(nx - 1), [], fn x, r ->
+          if Enum.member?(ps, {x, y}), do: ["#" | r], else: ["." | r]
+        end)
+        |> Enum.reverse()
+        |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+end
+```
+
+```elixir
+initial_ps_and_vs =
+  lines
+  |> Enum.map(&Day14.make_positions_and_velocities(&1))
+```
+
+```elixir
+new_ps =
+  initial_ps_and_vs
+  |> Enum.map(&Day14.position_after_time(&1, 100, dims))
+```
+
+```elixir
+quadrants =
+  new_ps
+  |> Enum.map(&Day14.quadrant(&1, dims))
+```
+
+```elixir
+quadrant_counts =
+  quadrants
+  |> Enum.reduce(%{}, fn q, map ->
+    case q do
+      nil ->
+        map
+
+      _ ->
+        case Map.has_key?(map, q) do
+          true -> Map.put(map, q, map[q] + 1)
+          _ -> Map.put(map, q, 1)
+        end
+    end
+  end)
+```
+
+```elixir
+safety_factor = Enum.reduce(quadrant_counts, 1, fn {_, n}, sf -> n * sf end)
+```
+
+```elixir
+initial_ps =
+  initial_ps_and_vs
+  |> Enum.map(&Day14.position_after_time(&1, 0, dims))
+```
+
+```elixir
+num_robots = Enum.count(initial_ps)
+```
+
+```elixir
+counts =
+  0..100
+  |> Enum.reduce([], fn t, acc ->
+    ps =
+      initial_ps_and_vs
+      |> Enum.map(fn pv -> Day14.position_after_time(pv, t, dims) end)
+
+    n =
+      ps
+      # abs(px-nx2) <= 4 and abs(py-ny2) <= 4 end)
+      |> Enum.filter(fn {px, py} -> abs(px - nx2) <= 2 end)
+      |> Enum.count()
+
+    [{t, n} | acc]
+  end)
+
+Enum.sort_by(counts, fn {_, n} -> n end, :desc)
+```
+
+```elixir
+initial_ps_and_vs
+|> Enum.map(&Day14.position_after_time(&1, 25, dims))
+|> Day14.display_ps(dims)
+```
+
+81*101 + 99 = 8280
+
+```elixir
+initial_ps_and_vs
+|> Enum.map(fn pv -> Day14.position_after_time(pv, 81 * 101 + 99, dims) end)
+|> Day14.display_ps_zoom(dims)
+```
+
+```elixir
+0..101
+|> Enum.reduce(0, fn t, _ ->
+  pic =
+    initial_ps_and_vs
+    |> Enum.map(fn pv -> Day14.position_after_time(pv, t * 101 + 99, dims) end)
+    |> Day14.display_ps_zoom(dims)
+
+  IO.inspect(t)
+  IO.inspect(pic)
+  :timer.sleep(1000)
+  t
+end)
+```

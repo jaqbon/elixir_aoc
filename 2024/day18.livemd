@@ -1,0 +1,370 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+byte_positions =
+  lines
+  |> Enum.map(&String.split(&1, ",", trim: true))
+  |> Enum.map(fn [s1, s2] -> [String.to_integer(s1), String.to_integer(s2)] end)
+```
+
+```elixir
+# {xmax, ymax, drop_time} = {6, 6, 12}
+
+{xmax, ymax, drop_time} = {70, 70, 1024}
+```
+
+```elixir
+defmodule Day18_Part1 do
+  def empty_grid(xmax, ymax) do
+    0..xmax
+    |> Enum.reduce(%{}, fn x, accx ->
+      0..ymax
+      |> Enum.reduce(accx, fn y, accy -> Map.put(accy, {x, y}, ".") end)
+    end)
+  end
+
+  def byte_drop(empty_grid, byte_positions, n) do
+    0..(n - 1)
+    |> Enum.reduce(empty_grid, fn i, acc ->
+      [x, y] = Enum.at(byte_positions, i)
+      Map.put(acc, {x, y}, "#")
+    end)
+  end
+
+  def new_position({x, y}, dir) do
+    case dir do
+      0 -> {{x + 1, y}, 1}
+      1 -> {{x, y - 1}, 1}
+      2 -> {{x - 1, y}, 1}
+      3 -> {{x, y + 1}, 1}
+    end
+  end
+
+  def find_allowed_moves(grid, pos) do
+    0..3
+    |> Enum.map(&new_position(pos, &1))
+    # |> IO.inspect(label: "asd")
+    |> Enum.filter(fn {pos, _} -> !(grid[pos] == nil or grid[pos] == "#") end)
+  end
+
+  def search(_, _, visited, []), do: visited
+
+  def search(grid, {xg, yg} = dims, visited, [next | rest]) do
+    {pos, cost, prev} = next
+
+    new_visited =
+      if Map.has_key?(visited, pos) do
+        {old_cost, _} = visited[pos]
+
+        if cost < old_cost do
+          Map.put(visited, pos, {cost, prev})
+        else
+          visited
+        end
+      else
+        Map.put(visited, pos, {cost, prev})
+      end
+
+    if pos == dims do
+      IO.inspect("E")
+      search(grid, dims, new_visited, rest)
+    else
+      moves =
+        find_allowed_moves(grid, pos)
+        # |> IO.inspect(label: "allowed")
+        |> Enum.map(fn {p, move_cost} -> {p, cost + move_cost, pos} end)
+        |> Enum.filter(fn {p, c, _} ->
+          if Map.has_key?(visited, p) do
+            {c0, _} = visited[p]
+            c < c0
+          else
+            true
+          end
+        end)
+
+      # , label: "rest")
+      # IO.inspect(length(rest))
+      # IO.inspect(pos)
+      # :timer.sleep(100)
+
+      new_frontier =
+        (moves ++ rest)
+        # |> Enum.sort_by(fn {_, c, _} -> c end)
+
+        # (xg-x)+(yg-y) end)
+        |> Enum.sort_by(fn {{x, y}, c, _} ->
+          :math.sqrt((xg - x) * (xg - x) + (yg - y) * (yg - y) + c)
+        end)
+
+      # IO.inspect(List.first(new_frontier))
+
+      search(grid, dims, new_visited, new_frontier)
+    end
+  end
+
+  def search(grid, dims) do
+    # {position, cost, prev}
+    next = [{{0, 0}, 0, nil}]
+
+    search(grid, dims, %{}, next)
+  end
+
+  def find_final_cost(dims, visited) do
+    {cost, _} = visited[dims]
+
+    cost
+  end
+
+  def find_best_path(grid, dims, visited, [pos | _] = path) do
+    if pos == {0, 0} do
+      path
+    else
+      {_, prev} = visited[pos]
+
+      find_best_path(grid, dims, visited, [prev | path])
+    end
+  end
+
+  def find_best_path(grid, dims, visited) do
+    find_best_path(grid, dims, visited, [dims])
+  end
+
+  def display(grid, path) do
+    keys = Map.keys(grid)
+    {xmax, _} = Enum.max_by(keys, fn {x, _} -> x end)
+    {_, ymax} = Enum.max_by(keys, fn {_, y} -> y end)
+
+    0..ymax
+    |> Enum.reduce([], fn y, rows ->
+      row =
+        0..xmax
+        |> Enum.reduce([], fn x, r ->
+          if Enum.member?(path, {x, y}), do: ["O" | r], else: [grid[{x, y}] | r]
+        end)
+        |> Enum.reverse()
+        |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+
+  def display(grid) do
+    keys = Map.keys(grid)
+    {xmax, _} = Enum.max_by(keys, fn {x, _} -> x end)
+    {_, ymax} = Enum.max_by(keys, fn {_, y} -> y end)
+
+    0..ymax
+    |> Enum.reduce([], fn y, rows ->
+      row =
+        0..xmax
+        |> Enum.reduce([], fn x, r -> [grid[{x, y}] | r] end)
+        |> Enum.reverse()
+        |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+end
+```
+
+```elixir
+empty_grid = Day18_Part1.empty_grid(xmax, ymax)
+```
+
+```elixir
+grid = Day18_Part1.byte_drop(empty_grid, byte_positions, drop_time)
+```
+
+```elixir
+Day18_Part1.display(grid)
+```
+
+```elixir
+visited = Day18_Part1.search(grid, {xmax, ymax})
+```
+
+```elixir
+path = Day18_Part1.find_best_path(grid, {xmax, ymax}, visited)
+```
+
+```elixir
+Day18_Part1.display(grid, path)
+```
+
+```elixir
+Day18_Part1.find_final_cost({xmax, ymax}, visited)
+```
+
+```elixir
+defmodule Day18_Part2 do
+  def empty_grid(xmax, ymax) do
+    0..xmax
+    |> Enum.reduce(%{}, fn x, accx ->
+      0..ymax
+      |> Enum.reduce(accx, fn y, accy -> Map.put(accy, {x, y}, ".") end)
+    end)
+  end
+
+  def byte_drop(empty_grid, byte_positions, n) do
+    0..(n - 1)
+    |> Enum.reduce(empty_grid, fn i, acc ->
+      [x, y] = Enum.at(byte_positions, i)
+      Map.put(acc, {x, y}, "#")
+    end)
+  end
+
+  def new_position({x, y}, dir) do
+    case dir do
+      0 -> {{x + 1, y}, 1}
+      1 -> {{x, y - 1}, 1}
+      2 -> {{x - 1, y}, 1}
+      3 -> {{x, y + 1}, 1}
+    end
+  end
+
+  def find_allowed_moves(grid, pos) do
+    0..3
+    |> Enum.map(&new_position(pos, &1))
+    # |> IO.inspect(label: "asd")
+    |> Enum.filter(fn {pos, _} -> !(grid[pos] == nil or grid[pos] == "#") end)
+  end
+
+  def search(_, _, visited, []), do: visited
+
+  def search(grid, {xg, yg} = dims, visited, [next | rest]) do
+    {pos, cost, prev} = next
+
+    new_visited =
+      if Map.has_key?(visited, pos) do
+        {old_cost, _} = visited[pos]
+
+        if cost < old_cost do
+          Map.put(visited, pos, {cost, prev})
+        else
+          visited
+        end
+      else
+        Map.put(visited, pos, {cost, prev})
+      end
+
+    if pos == dims do
+      IO.inspect("E")
+      search(grid, dims, new_visited, rest)
+    else
+      moves =
+        find_allowed_moves(grid, pos)
+        # |> IO.inspect(label: "allowed")
+        |> Enum.map(fn {p, move_cost} -> {p, cost + move_cost, pos} end)
+        |> Enum.filter(fn {p, c, _} ->
+          if Map.has_key?(visited, p) do
+            {c0, _} = visited[p]
+            c < c0
+          else
+            true
+          end
+        end)
+
+      # , label: "rest")
+      # IO.inspect(length(rest))
+      # IO.inspect(pos)
+      # :timer.sleep(100)
+
+      new_frontier =
+        (moves ++ rest)
+        |> Enum.sort_by(fn {_, c, _} -> c end)
+
+      # |> Enum.sort_by(fn {{x,y},_,_} -> #(xg-x)+(yg-y) end)
+      #    :math.sqrt((xg-x)*(xg-x)+(yg-y)*(yg-y)) end)
+      # IO.inspect(List.first(new_frontier))
+
+      search(grid, dims, new_visited, new_frontier)
+    end
+  end
+
+  def search(grid, dims) do
+    # {position, cost, prev}
+    next = [{{0, 0}, 0, nil}]
+
+    search(grid, dims, %{}, next)
+  end
+
+  def find_final_cost(dims, visited) do
+    {cost, _} = visited[dims]
+
+    cost
+  end
+
+  def find_best_path(grid, dims, visited, [pos | _] = path) do
+    if pos == {0, 0} do
+      path
+    else
+      {_, prev} = visited[pos]
+
+      find_best_path(grid, dims, visited, [prev | path])
+    end
+  end
+
+  def find_best_path(grid, dims, visited) do
+    find_best_path(grid, dims, visited, [dims])
+  end
+
+  def display(grid, path) do
+    keys = Map.keys(grid)
+    {xmax, _} = Enum.max_by(keys, fn {x, _} -> x end)
+    {_, ymax} = Enum.max_by(keys, fn {_, y} -> y end)
+
+    0..ymax
+    |> Enum.reduce([], fn y, rows ->
+      row =
+        0..xmax
+        |> Enum.reduce([], fn x, r ->
+          if Enum.member?(path, {x, y}), do: ["O" | r], else: [grid[{x, y}] | r]
+        end)
+        |> Enum.reverse()
+        |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+
+  def display(grid) do
+    keys = Map.keys(grid)
+    {xmax, _} = Enum.max_by(keys, fn {x, _} -> x end)
+    {_, ymax} = Enum.max_by(keys, fn {_, y} -> y end)
+
+    0..ymax
+    |> Enum.reduce([], fn y, rows ->
+      row =
+        0..xmax
+        |> Enum.reduce([], fn x, r -> [grid[{x, y}] | r] end)
+        |> Enum.reverse()
+        |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+end
+```

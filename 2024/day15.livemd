@@ -1,0 +1,198 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  # , trim: true)
+  |> String.split("\n")
+```
+
+```elixir
+defmodule Day15 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def find_path_start(grid) do
+    grid
+    |> Enum.find(fn {_key, val} -> val == "@" end)
+    |> elem(0)
+  end
+
+  def make_input(lines, make_wide \\ false) do
+    sep_index = Enum.find_index(lines, fn s -> s == "" end)
+
+    # Enum.split(lines, sep_index)
+    {grid_strs, [_ | attempt_lines]} = Enum.split(lines, sep_index)
+
+    original_grid_lines = Enum.map(grid_strs, &String.split(&1, "", trim: true))
+
+    grid_lines =
+      if make_wide do
+        Enum.map(original_grid_lines, fn line ->
+          new_line =
+            Enum.reduce(line, [], fn x, l ->
+              case x do
+                "#" -> ["#", "#" | l]
+                "O" -> ["]", "[" | l]
+                "." -> [".", "." | l]
+                "@" -> [".", "@" | l]
+              end
+            end)
+
+          Enum.reverse(new_line)
+        end)
+      else
+        original_grid_lines
+      end
+
+    dims = {length(grid_lines), length(List.first(grid_lines))}
+
+    grid = make_grid(grid_lines)
+
+    start = find_path_start(grid)
+
+    attempts = Enum.join(attempt_lines) |> String.split("", trim: true)
+
+    {grid, dims, start, attempts}
+  end
+
+  def step_direction("^"), do: {-1, 0}
+  def step_direction(">"), do: {0, 1}
+  def step_direction("v"), do: {1, 0}
+  def step_direction("<"), do: {0, -1}
+
+  def next_step({r, c}, {dr, dc}), do: {r + dr, c + dc}
+
+  def out_of_bounds({rows, cols}, {r, c}) do
+    r == -1 or r == rows or c == -1 or c == cols
+  end
+
+  def search_for_open(grid, position, direction) do
+    case grid[position] do
+      "#" -> nil
+      "." -> position
+      _ -> search_for_open(grid, next_step(position, direction), direction)
+    end
+  end
+
+  def push(grid, position, direction) do
+    case search_for_open(grid, position, direction) do
+      nil ->
+        {grid, position}
+
+      pos ->
+        new_position = next_step(position, direction)
+
+        new_grid =
+          grid
+          |> Map.put(pos, "O")
+          |> Map.put(new_position, "@")
+          |> Map.put(position, ".")
+
+        {new_grid, new_position}
+    end
+  end
+
+  def update(grid, position, attempt) do
+    direction = step_direction(attempt)
+
+    attempt_position = next_step(position, direction)
+
+    case grid[attempt_position] do
+      "#" ->
+        {grid, position}
+
+      "O" ->
+        push(grid, position, direction)
+
+      "." ->
+        new_grid =
+          grid
+          |> Map.put(position, ".")
+          |> Map.put(attempt_position, "@")
+
+        {new_grid, attempt_position}
+    end
+  end
+
+  def run(grid, _, []), do: grid
+
+  def run(grid, position, [attempt | attempts]) do
+    # :timer.sleep(1000)
+
+    {new_grid, new_position} = update(grid, position, attempt)
+
+    run(new_grid, new_position, attempts)
+  end
+
+  def gps({r, c}), do: 100 * r + c
+
+  def display(grid, {rows, cols}, is_big \\ true) do
+    sep_lines =
+      Enum.reduce(0..(rows - 1), [], fn r, pic ->
+        row =
+          Enum.reduce(0..(cols - 1), [], fn c, line ->
+            [grid[{r, c}] | line]
+          end)
+          |> Enum.reverse()
+
+        new_row = if is_big, do: Enum.join(row), else: row
+
+        [new_row | pic]
+      end)
+      |> Enum.reverse()
+
+    # Enum.join(sep_lines, "\n")
+  end
+end
+```
+
+```elixir
+{grid, dims, start, attempts} = Day15.make_input(lines)
+```
+
+```elixir
+final_grid = Day15.run(grid, start, attempts)
+```
+
+```elixir
+Day15.display(final_grid, dims)
+```
+
+```elixir
+Enum.reduce(final_grid, 0, fn {pos, type}, sum ->
+  if type == "O", do: sum + Day15.gps(pos), else: sum
+end)
+```
+
+Part 2
+
+```elixir
+{wide_grid, wide_dims, wide_start, attempts} = Day15.make_input(lines, true)
+```
+
+```elixir
+Day15.display(wide_grid, wide_dims, false)
+```
+
+```elixir
+wide_final_grid = Day15.run(wide_grid, wide_start, attempts)
+```

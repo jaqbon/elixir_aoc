@@ -1,0 +1,171 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+stones =
+  input
+  |> Kino.Input.read()
+  # |> String.split("\n", trim: true)
+  |> String.split(" ", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day11 do
+  def num_digits(x, n) do
+    case div(x, 10) do
+      0 -> n + 1
+      y -> num_digits(y, n + 1)
+    end
+  end
+
+  def num_digits(x), do: num_digits(x, 0)
+
+  def split_stone({l, r}, 0, _), do: [l, r]
+
+  def split_stone({l, r}, n, p),
+    do: split_stone({div(l, 10), 10 ** p * rem(l, 10) + r}, n - 1, p + 1)
+
+  def split_stone(x, n), do: split_stone({x, 0}, n, 0)
+
+  def transform(0), do: [1]
+
+  def transform(s) do
+    num = num_digits(s)
+
+    case rem(num, 2) do
+      0 -> split_stone(s, div(num, 2))
+      _ -> [2024 * s]
+    end
+  end
+
+  def blink_once([]), do: []
+
+  def blink_once(stones) do
+    stones
+    |> Enum.reduce([], fn s, ss -> ss ++ transform(s) end)
+  end
+
+  def blink(_, 0, set), do: set
+
+  def blink(stones, n, set) do
+    new_set =
+      stones
+      |> Enum.reduce(set, fn stone, acc -> MapSet.put(acc, stone) end)
+
+    IO.inspect(MapSet.size(new_set))
+
+    blink(blink_once(stones), n - 1, new_set)
+  end
+
+  def blink(stones, n), do: blink(stones, n, MapSet.new())
+
+  def find_uniques([], set), do: set
+
+  def find_uniques(stones, set) do
+    new_set =
+      stones
+      |> Enum.reduce(set, fn stone, acc -> MapSet.put(acc, stone) end)
+
+    new_stones =
+      stones
+      |> blink_once()
+      |> Enum.uniq()
+      |> Enum.reduce([], fn stone, acc ->
+        if MapSet.member?(new_set, stone), do: acc, else: [stone | acc]
+      end)
+
+    IO.inspect(new_stones)
+
+    find_uniques(new_stones, new_set)
+  end
+
+  def find_uniques(stones), do: find_uniques(stones, MapSet.new())
+
+  def make_transform_map(uniques) do
+    uniques
+    |> Enum.reduce(%{}, fn stone, acc ->
+      new_stones = blink_once([stone])
+      Map.put(acc, stone, new_stones)
+    end)
+  end
+
+  def number_after_blinks(_, 0, counts), do: counts
+
+  def number_after_blinks(map, n, counts) do
+    new_counts =
+      counts
+      |> Enum.reduce(%{}, fn {s, k}, acc1 ->
+        map[s]
+        |> Enum.reduce(acc1, fn s1, acc2 ->
+          k0 =
+            case acc2[s1] do
+              nil -> 0
+              x -> x
+            end
+
+          Map.put(acc2, s1, k + k0)
+        end)
+      end)
+
+    number_after_blinks(map, n - 1, new_counts)
+  end
+
+  def number(map, stones, n) do
+    counts =
+      stones
+      |> Enum.reduce(%{}, fn s, acc -> Map.put(acc, s, 1) end)
+
+    number_after_blinks(map, n, counts)
+  end
+end
+```
+
+```elixir
+Day11.split_stone(123_456, 3)
+```
+
+```elixir
+#    end)
+stones
+```
+
+```elixir
+Day11.blink_once(stones)
+```
+
+```elixir
+# |> Enum.count()
+Day11.blink(stones, 20)
+```
+
+```elixir
+uniques = Day11.find_uniques(stones)
+```
+
+```elixir
+MapSet.size(uniques)
+```
+
+```elixir
+map = Day11.make_transform_map(uniques)
+```
+
+```elixir
+after_blinks = Day11.number(map, stones, 75)
+```
+
+```elixir
+Enum.reduce(after_blinks, 0, fn {_, n}, sum -> sum + n end)
+```

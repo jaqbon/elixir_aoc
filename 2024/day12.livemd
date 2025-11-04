@@ -1,0 +1,225 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+dims = {length(lines), length(List.first(lines))}
+```
+
+```elixir
+grid =
+  for {line, row} <- Enum.with_index(lines),
+      {c, col} <- Enum.with_index(line),
+      into: %{} do
+    {{row, col}, c}
+  end
+```
+
+```elixir
+defmodule Day12 do
+  def step({r, c}, dir) do
+    case dir do
+      0 -> {r, c + 1}
+      1 -> {r - 1, c}
+      2 -> {r, c - 1}
+      3 -> {r + 1, c}
+    end
+  end
+
+  def step_corner({r, c}, dir) do
+    case dir do
+      0 -> {r - 1, c + 1}
+      1 -> {r - 1, c - 1}
+      2 -> {r + 1, c - 1}
+      3 -> {r + 1, c + 1}
+    end
+  end
+
+  def find_new_positions(grid, position, type, members) do
+    0..3
+    |> Enum.map(fn dir -> step(position, dir) end)
+    |> Enum.filter(&(grid[&1] == type))
+    |> Enum.filter(fn pos -> !MapSet.member?(members, pos) end)
+  end
+
+  def find_one_plot(_, [], _, members), do: members
+
+  def find_one_plot(grid, [position | rest], type, members) do
+    new_positions = find_new_positions(grid, position, type, members)
+
+    new_members = MapSet.put(members, position)
+
+    find_one_plot(grid, new_positions ++ rest, type, new_members)
+  end
+
+  def find_one_plot(grid, start) do
+    type = grid[start]
+    members = find_one_plot(grid, [start], type, MapSet.new())
+    {type, members}
+  end
+
+  def find_all_plots(_, {rows, _}, {rows, _}, _, plots), do: plots
+
+  def find_all_plots(grid, {rows, cols}, {row, cols}, visited, plots) do
+    find_all_plots(grid, {rows, cols}, {row + 1, 0}, visited, plots)
+  end
+
+  def find_all_plots(grid, dims, {row, col} = position, visited, plots) do
+    if MapSet.member?(visited, position) do
+      find_all_plots(grid, dims, {row, col + 1}, visited, plots)
+    else
+      plot = find_one_plot(grid, position)
+
+      {_, members} = plot
+
+      new_visited =
+        Enum.reduce(members, visited, fn pos, vs -> MapSet.put(vs, pos) end)
+
+      find_all_plots(grid, dims, {row, col + 1}, new_visited, [plot | plots])
+    end
+  end
+
+  def find_all_plots(grid, dims) do
+    find_all_plots(grid, dims, {0, 0}, MapSet.new(), [])
+  end
+
+  def find_area_and_perimiter({_, members}) do
+    area = MapSet.size(members)
+
+    perimeter =
+      Enum.reduce(members, 0, fn position, perm ->
+        num_neighbors =
+          0..3
+          |> Enum.map(fn dir -> step(position, dir) end)
+          |> Enum.filter(&Enum.member?(members, &1))
+          |> length
+
+        perm + (4 - num_neighbors)
+      end)
+
+    {area, perimeter}
+  end
+
+  def fence_price({area, perimeter}), do: area * perimeter
+
+  def is_convex?(members, pos, dir1) do
+    dir2 = rem(dir1 + 1, 4)
+
+    pos1 = step(pos, dir1)
+    pos2 = step(pos, dir2)
+
+    mem1 = Enum.member?(members, pos1)
+    mem2 = Enum.member?(members, pos2)
+
+    not mem1 and not mem2
+  end
+
+  def is_concave?(members, pos, dir1) do
+    dir3 = rem(dir1 + 1, 4)
+
+    pos1 = step(pos, dir1)
+    pos3 = step(pos, dir3)
+
+    pos2 = step_corner(pos, dir1)
+
+    mem1 = Enum.member?(members, pos1)
+    mem2 = Enum.member?(members, pos2)
+    mem3 = Enum.member?(members, pos3)
+
+    mem1 and mem3 and not mem2
+  end
+
+  def pos_corners(members, pos) do
+    Enum.reduce(0..3, 0, fn dir1, count ->
+      dir2 = rem(dir1 + 1, 4)
+      dir3 = rem(dir2 + 1, 4)
+
+      pos1 = step(pos, dir1)
+      pos2 = step(pos, dir2)
+      pos3 = step(pos, dir3)
+
+      mem1 = Enum.member?(members, pos1)
+      mem2 = Enum.member?(members, pos2)
+      mem3 = Enum.member?(members, pos3)
+
+      is_convex = not mem1 and not mem2
+      is_concave = mem1 and mem3 and not mem2
+
+      cnt_cv = if is_convex, do: 1, else: 0
+      cnt_cc = if is_concave, do: 1, else: 0
+
+      count + cnt_cv + cnt_cc
+    end)
+  end
+
+  def find_area_and_number_of_sides({name, members}) do
+    area = MapSet.size(members)
+
+    # number_of_corners =
+    #  Enum.reduce(members, 0, fn pos, sum ->
+    #    sum + pos_corners(members, pos)
+
+    number_of_corners =
+      Enum.reduce(members, 0, fn pos, corners ->
+        pos_corners =
+          Enum.reduce(0..3, 0, fn dir, cs ->
+            is_cv = is_convex?(members, pos, dir)
+            is_cc = is_concave?(members, pos, dir)
+            # IO.inspect({pos, dir, is_cv, is_cc})
+            case is_cv or is_cc do
+              false -> cs
+              true -> cs + 1
+            end
+          end)
+
+        # IO.inspect({pos, pos_corners})
+
+        corners + pos_corners
+      end)
+
+    {name, area, number_of_corners}
+  end
+
+  def bulk_discount({area, number_of_sides}), do: area * number_of_sides
+end
+```
+
+```elixir
+plots = Day12.find_all_plots(grid, dims)
+```
+
+```elixir
+areas_and_perimeters = Enum.map(plots, fn p -> Day12.find_area_and_perimiter(p) end)
+```
+
+```elixir
+areas_and_perimeters
+|> Enum.reduce(0, fn ap, total -> Day12.fence_price(ap) + total end)
+```
+
+```elixir
+areas_and_sides = Enum.map(plots, fn plot -> Day12.find_area_and_number_of_sides(plot) end)
+```
+
+```elixir
+areas_and_sides
+|> Enum.reduce(0, fn {_, a, s}, sum -> Day12.bulk_discount({a, s}) + sum end)
+```

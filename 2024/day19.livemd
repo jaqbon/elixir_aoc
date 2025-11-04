@@ -1,0 +1,121 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+towels =
+  lines
+  |> Enum.at(0)
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim_leading(&1))
+```
+
+```elixir
+designs =
+  lines
+  |> Enum.drop(1)
+```
+
+```elixir
+defmodule Day19 do
+  def starts_with(towels, {partial, used}) do
+    towels
+    |> Enum.map(fn t ->
+      if String.starts_with?(partial, t) do
+        # IO.inspect({t, partial})
+        new_partial = String.slice(partial, String.length(t), 1000)
+        {new_partial, [t | used]}
+      else
+        nil
+      end
+    end)
+    |> Enum.filter(&(&1 != nil))
+    |> Enum.filter(fn {_, l} -> l != [] end)
+  end
+
+  def breakdown(_, _, [], good), do: good
+
+  def breakdown(towels, design, [{partial, used} | rest], good) do
+    new_list = starts_with(towels, {partial, used})
+    # IO.inspect(new_list)
+    new_good =
+      new_list
+      |> Enum.filter(fn {p, _} -> p == "" end)
+      |> Enum.map(fn {_, u} -> Enum.reverse(u) end)
+
+    if new_good != [] do
+      IO.inspect("good")
+      new_good
+      # breakdown(towels, design, new_list ++ rest, new_good ++ good)
+    else
+      breakdown(towels, design, new_list ++ rest, good)
+    end
+  end
+
+  # returns a list of lists
+  def breakdown(towels, design) do
+    IO.inspect(design)
+    breakdown(towels, design, [{design, []}], [])
+  end
+
+  def allowed_designs(towels, designs) do
+    all =
+      designs
+      |> Enum.reduce(%{}, fn design, acc ->
+        Map.put(acc, design, breakdown(towels, design))
+      end)
+
+    Enum.reduce(designs, %{}, fn d, acc ->
+      case all[d] do
+        [] -> acc
+        _ -> Map.put(acc, d, all[d])
+      end
+    end)
+  end
+end
+```
+
+```elixir
+Day19.starts_with(towels, "brwrr")
+```
+
+```elixir
+Day19.starts_with(towels, "rwrr")
+```
+
+```elixir
+single = Enum.at(designs, 2)
+
+IO.inspect(single)
+
+Day19.breakdown(towels, single, [single], [])
+```
+
+```elixir
+single
+```
+
+```elixir
+allowed = Day19.allowed_designs(towels, designs)
+```
+
+```elixir
+num_possible = Enum.count(allowed)
+```

@@ -1,0 +1,73 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+eqs =
+  lines
+  |> Enum.map(&String.split(&1, " ", trim: true))
+  |> Enum.map(fn [x | rest] -> [String.slice(x, 0, String.length(x) - 1) | rest] end)
+  |> Enum.map(fn list -> Enum.map(list, fn str -> String.to_integer(str) end) end)
+  |> Enum.map(fn [test | nums] -> {test, nums} end)
+```
+
+```elixir
+op_list = ["+", "*", "|"]
+```
+
+```elixir
+defmodule Day07 do
+  def int_log(0), do: 0
+  def int_log(x), do: 1 + int_log(div(x, 10))
+
+  def concat(x, y) do
+    n = int_log(y)
+    x * 10 ** n + y
+  end
+
+  # Enum.map(op_list, fn _ -> x end)
+  def apply_ops(_, [x | []]), do: [x]
+
+  def apply_ops(op_list, [x | xs]) do
+    Enum.reduce(op_list, [], fn op, acc ->
+      results =
+        case op do
+          "+" -> Enum.map(apply_ops(op_list, xs), fn y -> x + y end)
+          "*" -> Enum.map(apply_ops(op_list, xs), fn y -> x * y end)
+          "|" -> Enum.map(apply_ops(op_list, xs), fn y -> concat(y, x) end)
+        end
+
+      results ++ acc
+    end)
+  end
+
+  def total_calibration(eqs, op_list) do
+    eqs
+    |> Enum.map(fn {test, xs} -> {test, Day07.apply_ops(op_list, Enum.reverse(xs))} end)
+    |> Enum.filter(fn {test, results} -> Enum.member?(results, test) end)
+    |> Enum.map(fn {test, _} -> test end)
+    |> Enum.sum()
+  end
+end
+```
+
+```elixir
+Day07.total_calibration(eqs, op_list)
+```

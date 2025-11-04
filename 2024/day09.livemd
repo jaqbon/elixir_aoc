@@ -1,0 +1,460 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+numbers =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> List.first()
+  |> String.split("", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+numbers |> Enum.chunk_every(2)
+```
+
+```elixir
+defmodule Day09 do
+  ###########################################################################################
+
+  def add_files_and_frees([file], {files, frees}) do
+    {[file | files], frees}
+  end
+
+  def add_files_and_frees([file, free], {files, frees}) do
+    {[file | files], [free | frees]}
+  end
+
+  ###########################################################################################
+
+  def interleave([file], [], map, count), do: Map.put(map, count, file)
+
+  def interleave([], frees, map, count) do
+    Enum.reduce(frees, {map, count}, fn x, {acc, cnt} -> {Map.put(acc, cnt, x), cnt + 1} end)
+  end
+
+  def interleave([file | files], [free | frees], map, count) do
+    new_map =
+      map
+      |> Map.put(count, file)
+      |> Map.put(count + 1, free)
+
+    interleave(files, frees, new_map, count + 2)
+  end
+
+  def interleave(files, frees), do: interleave(files, frees, %{}, 0)
+
+  ###########################################################################################
+
+  def expand_map(condensed_map) do
+    limit = Enum.count(condensed_map) - 1
+
+    {expanded_map, _} =
+      Enum.reduce(0..limit, {%{}, 0}, fn i, {acc, offset} ->
+        {id, n} = condensed_map[i]
+
+        new_map =
+          if n == 0 do
+            acc
+          else
+            offset..(offset + n - 1)
+            |> Enum.reduce(acc, fn j, m -> Map.put(m, j, id) end)
+          end
+
+        {new_map, offset + n}
+      end)
+
+    expanded_map
+  end
+
+  ###########################################################################################
+
+  # element i is kept
+  # everything above i is shifted by n
+  # this destroys i+1 through i+n
+  # last n elements are removed
+
+  def shift_left(map, i, n \\ 1) do
+    last = Enum.count(map) - 1
+
+    # IO.inspect(last, label: "last")
+
+    tmp =
+      if last - n <= i + 1 do
+        map
+      else
+        (i + 1)..(last - n)
+        |> Enum.reduce(map, fn j, acc -> Map.put(acc, j, acc[j + n]) end)
+      end
+
+    # IO.inspect(tmp, label: "shifted left")
+
+    last..(last - n + 1)
+    |> Enum.reduce(tmp, fn j, acc -> Map.delete(acc, j) end)
+  end
+
+  ###########################################################################################
+
+  # elements i and above are moved
+  # a n new elements are added at the end
+  # element i is left in place (and duplicated at i+n)
+  # n-1 copies of element i are inserted after i
+
+  def shift_right(map, i, n \\ 1) do
+    last = Enum.count(map) - 1
+
+    tmp =
+      last..i
+      |> Enum.reduce(map, fn j, acc -> Map.put(acc, j + n, acc[j]) end)
+
+    if n > 1 do
+      element = tmp[i]
+
+      (i + 1)..(i + n - 1)
+      |> Enum.reduce(tmp, fn j, acc -> Map.put(acc, j, element) end)
+    else
+      tmp
+    end
+  end
+
+  ###########################################################################################
+
+  def remove_zero_length_frees(map) do
+    limit = Enum.count(map) - 1
+
+    zeros =
+      limit..0
+      |> Enum.reduce([], fn k, acc ->
+        case map[k] do
+          {-1, 0} -> [k | acc]
+          _ -> acc
+        end
+      end)
+
+    if length(zeros) == 0 do
+      map
+    else
+      zeros
+      |> Enum.reduce(map, fn i, acc -> shift_left(acc, i) end)
+    end
+  end
+
+  ###########################################################################################
+
+  def make_disk_map(numbers) do
+    {rev_files, rev_frees} =
+      numbers
+      |> Enum.chunk_every(2)
+      |> Enum.reduce({[], []}, fn pair, ffs -> add_files_and_frees(pair, ffs) end)
+
+    {files, frees} = {Enum.reverse(rev_files), Enum.reverse(rev_frees)}
+
+    files_with_ids = Enum.zip(0..(length(files) - 1), files)
+    frees_with_ids = Enum.map(frees, fn n -> {-1, n} end)
+
+    # total_free = Enum.reduce(frees_with_ids, 0, fn {_, n}, total -> total + n end)
+
+    condensed_map = interleave(files_with_ids, frees_with_ids)
+
+    # |> remove_zero_length_frees()
+
+    expanded_map = expand_map(condensed_map)
+
+    {expanded_map, condensed_map}
+  end
+
+  ###########################################################################################
+
+  def pack(map, i, i), do: map
+
+  def pack(map, i1, i2) do
+    # IO.inspect({i1,i2})
+
+    id2 = map[i2]
+
+    if id2 == -1 do
+      # free space, nothing to pack
+      pack(map, i1, i2 - 1)
+    else
+      id1 = map[i1]
+
+      if id1 == -1 do
+        map
+        # move back to free space
+        |> Map.put(i1, id2)
+        # mark back as free
+        |> Map.put(i2, id1)
+        |> pack(i1 + 1, i2 - 1)
+      else
+        # file at front, no free space to pack
+        pack(map, i1 + 1, i2)
+      end
+    end
+  end
+
+  def pack(map), do: pack(map, 0, Enum.count(map) - 1)
+
+  ###########################################################################################
+
+  def checksum(map) do
+    Enum.reduce(map, 0, fn {i, id}, chk -> if id == -1, do: chk, else: chk + i * id end)
+  end
+
+  ###########################################################################################
+
+  def display(map) do
+    limit = Enum.count(map) - 1
+
+    0..limit
+    |> Enum.reduce([], fn i, acc -> [map[i] | acc] end)
+    |> Enum.reverse()
+    |> Enum.map(fn x -> if x == -1, do: ".", else: Integer.to_string(x) end)
+    |> Enum.join()
+  end
+
+  ###########################################################################################
+
+  def find_free_space(map) do
+    limit = Enum.count(map) - 1
+
+    0..limit
+    |> Enum.reduce([], fn i, frees -> if map[i] == -1, do: [i | frees], else: frees end)
+    |> Enum.reverse()
+  end
+
+  ###########################################################################################
+
+  def search_for_free(_, i, i), do: nil
+
+  def search_for_free(map, j, i) do
+    # IO.inspect({{j, i}, {map[j], map[i]}}, label: "search_for_free")
+
+    {id, m} = map[j]
+    {_, n} = map[i]
+
+    if id == -1 and m >= n do
+      j
+    else
+      search_for_free(map, j + 1, i)
+    end
+  end
+
+  def search_for_free(map, i), do: search_for_free(map, 1, i)
+
+  ###########################################################################################
+
+  def chunk_fun(element, acc) do
+    case element do
+      {i, {-1, _}} -> {:cont, [i | acc]}
+      _ -> {:cont, Enum.reverse(acc), []}
+    end
+  end
+
+  def after_fun(acc) do
+    case acc do
+      [] -> {:cont, []}
+      acc -> {:cont, Enum.reverse(acc), []}
+    end
+  end
+
+  def find_adjacent_frees(map) do
+    limit = Enum.count(map) - 1
+
+    0..limit
+    |> Enum.reduce([], fn i, acc -> [map[i] | acc] end)
+    |> Enum.reverse()
+    |> Enum.with_index(fn element, index -> {index, element} end)
+    |> Enum.chunk_while([], &chunk_fun/2, &after_fun/1)
+    |> Enum.filter(fn element -> length(element) >= 2 end)
+  end
+
+  ###########################################################################################
+
+  def consolidate_frees(map, []), do: map
+
+  def consolidate_frees(map, [[] | rest]), do: consolidate_frees(map, rest)
+
+  def consolidate_frees(map, [adj | rest]) do
+    first = List.first(adj)
+    last = List.last(adj)
+
+    # IO.inspect({first,last}, label: "first,last")
+
+    total_free =
+      first..last
+      |> Enum.reduce(0, fn i, sum ->
+        {-1, n} = map[i]
+        sum + n
+      end)
+
+    new_map =
+      map
+      |> Map.put(first, {-1, total_free})
+      |> shift_left(first, last - first)
+
+    # IO.inspect(new_map, label: "new_map")
+
+    consolidate_frees(new_map, rest)
+  end
+
+  def consolidate_frees(map) do
+    adjacent_frees = find_adjacent_frees(map)
+
+    # IO.inspect(adjacent_frees, label: "adjacent_frees")
+
+    consolidate_frees(map, adjacent_frees)
+  end
+
+  ###########################################################################################
+
+  def pack_the_file(map, j, i) do
+    {-1, m} = map[j]
+    {_, n} = map[i]
+
+    if n == m do
+      new_map =
+        map
+        |> Map.put(j, map[i])
+        |> Map.put(i, {-1, n})
+
+      {new_map, i}
+    else
+      excess = m - n
+
+      # swap file and free space
+      tmp1 =
+        map
+        |> Map.put(j, map[i])
+        |> Map.put(i, {-1, n})
+
+      # need to insert a new value to hold the leftover space
+      # move (j+1 through limit) to (j+2 through limit+1)
+
+      tmp2 = shift_right(tmp1, j)
+
+      # put leftover free space at j+1
+      new_map = Map.put(tmp2, j + 1, {-1, excess})
+
+      {new_map, i}
+    end
+  end
+
+  ###########################################################################################
+
+  def pack_files(map, 0), do: map
+
+  def pack_files(input_map, i) do
+    IO.inspect(i, label: "i")
+    # label = "index " <> Integer.to_string(i)#Enum.count(map))
+    # IO.inspect(display(expand_map(input_map)), label: label)
+
+    map = consolidate_frees(input_map)
+
+    case map[i] do
+      {-1, _} ->
+        pack_files(map, i - 1)
+
+      _ ->
+        # search for adequate free space from 0 to i
+        case search_for_free(map, i) do
+          nil ->
+            # no adequate space found, look for next file
+            pack_files(map, i - 1)
+
+          j ->
+            # found free space starting at j
+
+            # new_map = pack_the_file(map, i, j)
+            # pack_files(new_map, i - 1)
+
+            {new_map, new_i} = pack_the_file(map, j, i)
+
+            # IO.inspect(new_i, label: "new_i")
+            # IO.inspect(new_map)
+
+            pack_files(new_map, new_i - 1)
+        end
+    end
+  end
+
+  def pack_files(map), do: pack_files(map, Enum.count(map) - 1)
+
+  ###########################################################################################
+end
+```
+
+```elixir
+{disk_map, condensed_map} = Day09.make_disk_map(numbers)
+```
+
+```elixir
+disk_map
+```
+
+```elixir
+Day09.display(disk_map)
+```
+
+```elixir
+packed_map = Day09.pack(disk_map)
+```
+
+```elixir
+Day09.display(packed_map)
+```
+
+```elixir
+Day09.checksum(packed_map)
+```
+
+```elixir
+condensed_map
+```
+
+00...111...2...333.44.5555.6666.777.888899
+
+0099.111...2...333.44.5555.6666.777.8888..
+
+0099.1117772...333.44.5555.6666.....8888..
+
+0099.111777244.333....5555.6666.....8888..
+
+00992111777.44.333....5555.6666.....8888..
+
+```elixir
+Day09.find_adjacent_frees(condensed_map)
+```
+
+```elixir
+packed_files =
+  condensed_map
+  # |> Day09.remove_zero_length_frees()
+  |> Day09.pack_files()
+```
+
+```elixir
+expanded_packed_files = Day09.expand_map(packed_files)
+```
+
+```elixir
+Day09.display(expanded_packed_files)
+```
+
+00992111777.44.333....5555.6666.....8888..
+
+```elixir
+Day09.checksum(expanded_packed_files)
+```

@@ -1,0 +1,191 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+connections =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "-"))
+  |> Enum.map(fn [x, y] -> {x, y} end)
+```
+
+```elixir
+defmodule Day23 do
+  def find_uniques(list) do
+    list
+    |> Enum.reduce(MapSet.new(), fn {a, b}, acc -> MapSet.put(acc, a) |> MapSet.put(b) end)
+  end
+
+  def find_neighbors(c, connections) do
+    connections
+    |> Enum.reduce([], fn pair, acc ->
+      case pair do
+        {^c, x} -> [x | acc]
+        {x, ^c} -> [x | acc]
+        _ -> acc
+      end
+    end)
+  end
+
+  def find_nns(neighbors) do
+    neighbors
+    |> Enum.reduce([], fn {c1, ns1}, acc1 ->
+      nns1 =
+        ns1
+        |> Enum.reduce([], fn c2, acc2 ->
+          [{c2, neighbors[c2]} | acc2]
+        end)
+
+      [{c1, nns1} | acc1]
+    end)
+  end
+
+  def find_triplets(neighbors) do
+    neighbors
+    |> Enum.reduce([], fn {c1, n1s}, acc1 ->
+      n1s
+      |> Enum.reduce(acc1, fn c2, acc2 ->
+        neighbors[c2]
+        |> Enum.reduce(acc2, fn c3, acc3 ->
+          if Enum.member?(n1s, c3) do
+            [[c1, c2, c3] | acc3]
+          else
+            acc3
+          end
+        end)
+      end)
+    end)
+  end
+
+  def intersection(a, b) do
+    b
+    |> Enum.reduce([], fn x, acc ->
+      if Enum.member?(a, x), do: [x | acc], else: acc
+    end)
+  end
+
+  # Bron-Kerbosch algorithm
+
+  def bk(_, [], [], _, cliques), do: cliques
+
+  def bk(_, r, [], [], cs), do: [r | cs]
+
+  def bk(_, _, [], _, cs), do: cs
+
+  def bk(ns, r0, [v | _] = p0, x0, cs) do
+    r1 = [v] ++ r0
+    p1 = intersection(p0, ns[v])
+    x1 = intersection(x0, ns[v])
+
+    cs2 = bk(ns, r1, p1, x1, cs)
+
+    p2 = List.delete(p0, v)
+    x2 = [v | x0]
+
+    bk(ns, r0, p2, x2, cs2)
+  end
+
+  def bk(computers, neighbors), do: bk(neighbors, [], computers, [], [])
+
+  # dfs
+  #
+  #  def find_clusters([],_,_,_,_, clusters), do: clusters
+  #
+  #  def find_clusters([next|rest], neighbors, [], _, this_cluster, clusters) do
+  #    case this_cluster do
+  #      [] -> find_clusters(rest, neighbors, [next], [], [], clusters)
+  #      _  -> find_clusters(rest, neighbors, [next], [], [], [this_cluster|clusters])
+  #    end
+  #  end
+  #
+  #  def find_clusters(computers, neighbors, [next|rest], visited, this_cluster, clusters) do
+  #    if Enum.member?(visited, next) do
+  #      find_clusters(computers, neighbors, rest, visited, this_cluster, clusters)
+  #    else
+  #      frontier = neighbors[next] ++ rest
+  #      find_clusters(computers, neighbors, frontier, [next|visited], [next|this_cluster], clusters)
+  #    end
+  #  end
+  #
+  #  def find_clusters(computers, neighbors) do
+  #    [next|rest] = computers
+  #
+  #    find_clusters(rest, neighbors, [next], [], [], [])
+  #  end
+end
+```
+
+```elixir
+computers = Day23.find_uniques(connections) |> MapSet.to_list()
+```
+
+```elixir
+neighbors =
+  computers
+  |> Enum.reduce(%{}, fn c, acc -> Map.put(acc, c, Day23.find_neighbors(c, connections)) end)
+```
+
+```elixir
+nns = Day23.find_nns(neighbors)
+```
+
+```elixir
+triplets =
+  neighbors
+  |> Day23.find_triplets()
+  |> Enum.map(&Enum.sort(&1))
+  |> Enum.uniq()
+```
+
+```elixir
+t_triplets =
+  triplets
+  |> Enum.filter(fn trip ->
+    Enum.reduce_while(trip, false, fn c, _ ->
+      if String.first(c) == "t", do: {:halt, true}, else: {:cont, false}
+    end)
+  end)
+```
+
+```elixir
+Enum.count(t_triplets)
+```
+
+```elixir
+nodes = [1, 2, 3, 4, 5]
+
+ns =
+  %{}
+  |> Map.put(1, [2, 3])
+  |> Map.put(2, [1, 3])
+  |> Map.put(3, [1, 2, 4])
+  |> Map.put(4, [3])
+  |> Map.put(5, [])
+```
+
+```elixir
+Day23.bk(nodes, ns)
+```
+
+```elixir
+cliques = Day23.bk(computers, neighbors)
+```
+
+```elixir
+cliques
+|> Enum.max_by(fn c -> length(c) end)
+|> Enum.sort()
+|> Enum.join(",")
+```

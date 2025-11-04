@@ -1,0 +1,198 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+initial_wires =
+  lines
+  |> Enum.map(&String.split(&1, ":"))
+  |> Enum.reduce([], fn x, acc ->
+    case x do
+      [a, b] -> [[a, b] | acc]
+      _ -> acc
+    end
+  end)
+  |> Enum.map(fn [w, s] -> [w, String.to_integer(String.trim_leading(s))] end)
+  |> Enum.reduce(%{}, fn [k, v], acc -> Map.put(acc, k, v) end)
+```
+
+```elixir
+gates =
+  lines
+  |> Enum.map(&String.split(&1, "->"))
+  |> Enum.reduce([], fn x, acc ->
+    case x do
+      [a, b] -> [[a, b] | acc]
+      _ -> acc
+    end
+  end)
+  |> Enum.map(fn [g, w] -> [g, String.trim_leading(w)] end)
+  |> Enum.map(fn [g, w] -> [String.split(g, " ", trim: true), w] end)
+  |> Enum.map(fn [[i1, type, i2], o] -> {{type, i1, i2}, o} end)
+```
+
+```elixir
+wires =
+  gates
+  |> Enum.reduce(initial_wires, fn {{_, i1, i2}, o}, acc1 ->
+    acc2 = if Map.has_key?(acc1, i1), do: acc1, else: Map.put(acc1, i1, nil)
+    acc3 = if Map.has_key?(acc2, i2), do: acc2, else: Map.put(acc2, i2, nil)
+    acc4 = if Map.has_key?(acc3, o), do: acc3, else: Map.put(acc3, o, nil)
+    acc4
+  end)
+```
+
+```elixir
+defmodule Day24 do
+  def gate_output({type, i1, i2}, wires) do
+    v1 = wires[i1]
+    v2 = wires[i2]
+
+    if v1 == nil or v2 == nil do
+      nil
+    else
+      case type do
+        "AND" -> v1 * v2
+        "OR" -> if v1 + v2 > 0, do: 1, else: 0
+        "XOR" -> if v1 == v2, do: 0, else: 1
+      end
+    end
+  end
+
+  def evaluate(gates, wires) do
+    if Enum.any?(wires, fn {_, v} -> v == nil end) do
+      new_wires =
+        gates
+        |> Enum.reduce(wires, fn {input, o}, ws -> Map.put(ws, o, gate_output(input, ws)) end)
+
+      evaluate(gates, new_wires)
+    else
+      wires
+    end
+  end
+
+  def bits(wires, c) do
+    wires
+    |> Enum.reduce([], fn {k, v}, acc ->
+      if String.at(k, 0) == c do
+        [{String.to_integer(String.slice(k, 1, 100)), v} | acc]
+      else
+        acc
+      end
+    end)
+    |> Enum.sort(fn {p1, _}, {p2, _} -> p1 <= p2 end)
+  end
+
+  def bit_value(bs) do
+    Enum.reduce(bs, {0, 1}, fn {_, v}, {sum, mult} -> {sum + mult * v, 2 * mult} end)
+  end
+
+  def z_value(wires) do
+    {value, _} =
+      wires
+      |> bits("z")
+      |> bit_value()
+
+    value
+  end
+
+  #  def base_2(0, bs), do: Enum.reverse(bs)
+
+  def base_2(0, bs) do
+    {rev, _} =
+      bs
+      |> Enum.reverse()
+      |> Enum.reduce({[], 0}, fn b, {list, pow} -> {[{pow, b} | list], pow + 1} end)
+
+    Enum.reverse(rev)
+  end
+
+  def base_2(x, bs) do
+    base_2(div(x, 2), [rem(x, 2) | bs])
+  end
+
+  def base_2(x), do: base_2(x, [])
+
+  def find_swapped(wires) do
+    {x_value, _} = bits(wires, "x") |> bit_value()
+    {y_value, _} = bits(wires, "y") |> bit_value()
+
+    sum = x_value + y_value
+
+    xy_bits = base_2(sum)
+
+    z_bits = bits(wires, "z")
+
+    comp = Enum.zip(xy_bits, z_bits)
+
+    IO.inspect(comp)
+
+    comp
+    |> Enum.reduce([], fn {{p, _} = xy, z}, list ->
+      if xy == z do
+        list
+      else
+        name =
+          if p < 10 do
+            "z0" <> Integer.to_string(p)
+          else
+            "z" <> Integer.to_string(p)
+          end
+
+        [name | list]
+      end
+    end)
+    |> Enum.reverse()
+  end
+end
+```
+
+```elixir
+settle = Day24.evaluate(gates, wires)
+```
+
+```elixir
+Day24.z_value(settle)
+```
+
+```elixir
+x_bits = Day24.bits(settle, "x")
+```
+
+```elixir
+y_bits = Day24.bits(settle, "y")
+```
+
+```elixir
+{x_value, _} = Day24.bit_value(x_bits)
+{y_value, _} = Day24.bit_value(y_bits)
+
+sum = x_value + y_value
+
+xy_bits = Day24.base_2(sum)
+```
+
+```elixir
+z_bits = Day24.bits(settle, "z")
+```
+
+```elixir
+Day24.find_swapped(settle)
+```

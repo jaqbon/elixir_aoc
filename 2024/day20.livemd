@@ -1,0 +1,265 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+grid =
+  for {line, y} <- Enum.with_index(lines),
+      {c, x} <- Enum.with_index(line),
+      into: %{} do
+    {{x, y}, c}
+  end
+```
+
+```elixir
+keys = Map.keys(grid)
+
+{xmax, _} = Enum.max_by(keys, fn {x, _} -> x end)
+{_, ymax} = Enum.max_by(keys, fn {_, y} -> y end)
+
+dims = {xmax, ymax}
+```
+
+```elixir
+defmodule Day20 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def find_start(grid) do
+    grid
+    |> Enum.find(fn {_key, val} -> val == "S" end)
+    |> elem(0)
+  end
+
+  def find_finish(grid) do
+    grid
+    |> Enum.find(fn {_key, val} -> val == "E" end)
+    |> elem(0)
+  end
+
+  def new_position({x, y}, dir) do
+    case dir do
+      0 -> {{x + 1, y}, 1}
+      1 -> {{x, y - 1}, 1}
+      2 -> {{x - 1, y}, 1}
+      3 -> {{x, y + 1}, 1}
+    end
+  end
+
+  def find_allowed_moves(grid, pos) do
+    0..3
+    |> Enum.map(&new_position(pos, &1))
+    # |> IO.inspect(label: "asd")
+    |> Enum.filter(fn {pos, _} -> !(grid[pos] == nil or grid[pos] == "#") end)
+  end
+
+  def search(_, _, visited, []), do: visited
+
+  def search(grid, dims, visited, [next | rest]) do
+    {pos, cost, prev} = next
+
+    new_visited =
+      if Map.has_key?(visited, pos) do
+        {old_cost, _} = visited[pos]
+
+        if cost < old_cost do
+          Map.put(visited, pos, {cost, prev})
+        else
+          visited
+        end
+      else
+        Map.put(visited, pos, {cost, prev})
+      end
+
+    if pos == dims do
+      IO.inspect("E")
+      search(grid, dims, new_visited, rest)
+    else
+      moves =
+        find_allowed_moves(grid, pos)
+        # |> IO.inspect(label: "allowed")
+        |> Enum.map(fn {p, move_cost} -> {p, cost + move_cost, pos} end)
+        |> Enum.filter(fn {p, c, _} ->
+          if Map.has_key?(visited, p) do
+            {c0, _} = visited[p]
+            c < c0
+          else
+            true
+          end
+        end)
+
+      # , label: "rest")
+      # IO.inspect(length(rest))
+      # IO.inspect(pos)
+      # :timer.sleep(100)
+
+      new_frontier =
+        (moves ++ rest)
+        |> Enum.sort_by(fn {_, c, _} -> c end)
+
+      search(grid, dims, new_visited, new_frontier)
+    end
+  end
+
+  def search(grid, dims, start) do
+    # {position, cost, prev}
+    next = [{start, 0, nil}]
+
+    search(grid, dims, %{}, next)
+  end
+
+  def find_final_cost(grid, visited) do
+    finish = find_finish(grid)
+
+    {cost, _} = visited[finish]
+
+    cost
+  end
+
+  def find_best_path(grid, visited, start, [pos | _] = path) do
+    if pos == start do
+      path
+    else
+      {_, prev} = visited[pos]
+
+      find_best_path(grid, visited, start, [prev | path])
+    end
+  end
+
+  def find_best_path(grid, visited) do
+    start = find_start(grid)
+
+    finish = find_finish(grid)
+
+    find_best_path(grid, visited, start, [finish])
+  end
+
+  def find_cheats(_, _, [], cheats), do: cheats
+
+  def find_cheats(grid, visited, [pos0 | rest], cheats) do
+    maybe_cheats =
+      0..3
+      |> Enum.reduce([], fn dir, acc ->
+        {pos1, _} = new_position(pos0, dir)
+
+        if grid[pos1] != "#" do
+          acc
+        else
+          {pos2, _} = new_position(pos1, dir)
+
+          if !Enum.member?(rest, pos2) do
+            acc
+          else
+            # IO.inspect({pos1,pos2})
+            {cost0, _} = visited[pos0]
+            {cost2, _} = visited[pos2]
+
+            savings = cost2 - cost0 - 2
+
+            [{savings, pos1} | acc]
+          end
+        end
+      end)
+
+    new_cheats = if maybe_cheats == [], do: cheats, else: [maybe_cheats | cheats]
+
+    find_cheats(grid, visited, rest, new_cheats)
+  end
+
+  def find_cheats(grid, visited, path), do: find_cheats(grid, visited, path, [])
+
+  def display(grid, path \\ nil) do
+    keys = Map.keys(grid)
+    {xmax, _} = Enum.max_by(keys, fn {x, _} -> x end)
+    {_, ymax} = Enum.max_by(keys, fn {_, y} -> y end)
+
+    0..ymax
+    |> Enum.reduce([], fn y, rows ->
+      row =
+        0..xmax
+        |> Enum.reduce([], fn x, r ->
+          c0 = grid[{x, y}]
+
+          c =
+            if path == nil or c0 == "S" or c0 == "E" do
+              c0
+            else
+              if Enum.member?(path, {x, y}), do: "O", else: c0
+            end
+
+          [c | r]
+        end)
+        |> Enum.reverse()
+
+      # |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+end
+```
+
+```elixir
+start = Day20.find_start(grid)
+```
+
+```elixir
+visited = Day20.search(grid, dims, start)
+```
+
+```elixir
+path = Day20.find_best_path(grid, visited)
+```
+
+```elixir
+Enum.count(path)
+```
+
+```elixir
+Day20.find_final_cost(grid, visited)
+```
+
+```elixir
+Day20.display(grid)
+```
+
+```elixir
+Day20.display(grid, path)
+```
+
+```elixir
+cheats =
+  Day20.find_cheats(grid, visited, path)
+  |> Enum.reduce([], fn cs, acc -> cs ++ acc end)
+  |> Enum.sort_by(fn {s, _} -> s end)
+```
+
+```elixir
+cheats
+# |> Enum.filter(fn {s, _} -> s >= 100 end)
+|> Enum.count()
+```

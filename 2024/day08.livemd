@@ -1,0 +1,154 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+dims = {length(lines), length(List.first(lines))}
+```
+
+```elixir
+defmodule Day08 do
+  def find_antennas(lines) do
+    {_, antenna_map} =
+      Enum.reduce(lines, {0, %{}}, fn line, {row, map} ->
+        {_, row_map} =
+          Enum.reduce(line, {0, %{}}, fn s, {col, line_map} ->
+            case s do
+              "." ->
+                {col + 1, line_map}
+
+              _ ->
+                if Map.has_key?(line_map, s) do
+                  {col + 1, Map.put(line_map, s, [{row, col} | line_map[s]])}
+                else
+                  {col + 1, Map.put(line_map, s, [{row, col}])}
+                end
+            end
+          end)
+
+        if row_map == %{} do
+          {row + 1, map}
+        else
+          new_map =
+            Enum.reduce(row_map, map, fn {k, v}, acc ->
+              if Map.has_key?(acc, k) do
+                Map.put(acc, k, v ++ acc[k])
+              else
+                Map.put(acc, k, v)
+              end
+            end)
+
+          {row + 1, new_map}
+        end
+      end)
+
+    antenna_map
+  end
+
+  def in_bounds?({r, c}, {rows, cols}) do
+    0 <= r and r < rows and 0 <= c and c < cols
+  end
+
+  def find_pair_resonances({a1r, a1c}, {a2r, a2c}, dims) do
+    {dar, dac} = {a2r - a1r, a2c - a1c}
+
+    rs = [{a2r + dar, a2c + dac}, {a1r - dar, a1c - dac}]
+
+    Enum.filter(rs, fn pos -> in_bounds?(pos, dims) end)
+  end
+
+  def find_type_resonances([], _, list), do: list
+  def find_type_resonances([_], _, list), do: list
+
+  def find_type_resonances([a1 | as], dims, res_list) do
+    new_res_list =
+      Enum.reduce(as, res_list, fn a2, rs ->
+        find_pair_resonances(a1, a2, dims) ++ rs
+      end)
+
+    find_type_resonances(as, dims, new_res_list)
+  end
+
+  def find_type_resonances(antennas, dims) do
+    find_type_resonances(antennas, dims, [])
+  end
+
+  def harmonic_resonances({a0r, a0c}, {dar, dac} = da, dims, hrs) do
+    a = {a0r + dar, a0c + dac}
+
+    case in_bounds?(a, dims) do
+      true -> harmonic_resonances(a, da, dims, [a | hrs])
+      _ -> hrs
+    end
+  end
+
+  def find_pair_harmonic_resonances({a1r, a1c}, {a2r, a2c}, dims) do
+    {dar, dac} = {a2r - a1r, a2c - a1c}
+
+    gcd = Integer.gcd(dar, dac)
+
+    {dar, dac} = {div(dar, gcd), div(dac, gcd)}
+
+    rs_pos = harmonic_resonances({a2r, a2c}, {dar, dac}, dims, [])
+    rs_neg = harmonic_resonances({a2r, a2c}, {-dar, -dac}, dims, [])
+
+    rs_pos ++ [{a2r, a2c}] ++ rs_neg
+  end
+
+  def find_type_harmonic_resonances([], _, list), do: list
+  def find_type_harmonic_resonances([_], _, list), do: list
+
+  def find_type_harmonic_resonances([a1 | as], dims, res_list) do
+    new_res_list =
+      Enum.reduce(as, res_list, fn a2, rs ->
+        find_pair_harmonic_resonances(a1, a2, dims) ++ rs
+      end)
+
+    find_type_harmonic_resonances(as, dims, new_res_list)
+  end
+
+  def find_type_harmonic_resonances(antennas, dims) do
+    find_type_harmonic_resonances(antennas, dims, [])
+  end
+end
+```
+
+```elixir
+antennas = Day08.find_antennas(lines)
+```
+
+```elixir
+antennas
+|> Enum.reduce([], fn {_, as}, rs ->
+  Day08.find_type_resonances(as, dims) ++ rs
+end)
+|> Enum.uniq()
+|> Enum.count()
+```
+
+```elixir
+antennas
+|> Enum.reduce([], fn {_, as}, rs ->
+  Day08.find_type_harmonic_resonances(as, dims) ++ rs
+end)
+|> Enum.uniq()
+|> Enum.count()
+```

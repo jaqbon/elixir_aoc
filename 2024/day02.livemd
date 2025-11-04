@@ -1,0 +1,106 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+reports =
+  lines
+  |> Enum.map(&String.split(&1))
+  |> Enum.map(&Enum.map(&1, fn s -> String.to_integer(s) end))
+```
+
+```elixir
+defmodule Day02_Part1 do
+  def is_increasing?(level) do
+    level == Enum.sort(level, :asc)
+  end
+
+  def is_decreasing?(level) do
+    level == Enum.sort(level, :desc)
+  end
+
+  def increments_ok?([_ | []]), do: true
+
+  def increments_ok?([x1 | xs]) do
+    [x2 | _] = xs
+    diff = abs(x1 - x2)
+    if 1 <= diff and diff <= 3, do: increments_ok?(xs), else: false
+  end
+
+  def is_safe?(level) do
+    (is_increasing?(level) or is_decreasing?(level)) and increments_ok?(level)
+  end
+end
+```
+
+```elixir
+reports
+|> Enum.map(&Day02_Part1.is_safe?(&1))
+|> Enum.filter(& &1)
+|> length()
+```
+
+```elixir
+defmodule Day02_Part2 do
+  def remove_one(_, [], list), do: list
+
+  def remove_one(head, tail, list) do
+    [x | new_tail] = tail
+    new_level = head ++ new_tail
+    new_head = head ++ [x]
+    new_list = [new_level] ++ list
+    # IO.inspect(new_head, label: "new_head")
+    # IO.inspect(new_tail, label: "new_tail")
+    # IO.inspect(new_level, label: "new_level")
+    remove_one(new_head, new_tail, new_list)
+  end
+
+  def remove_one(level) do
+    remove_one([], level, [])
+  end
+
+  def make_maybe_safe(level) do
+    [level | remove_one(level)]
+  end
+
+  def problem_dampener(level) do
+    level
+    |> make_maybe_safe()
+    |> Enum.reduce_while(false, fn l, _ ->
+      if Day02_Part1.is_safe?(l), do: {:halt, true}, else: {:cont, false}
+    end)
+  end
+end
+```
+
+```elixir
+Day02_Part2.remove_one([], [7, 6, 4, 2, 1], [])
+```
+
+```elixir
+Day02_Part2.make_maybe_safe([7, 6, 4, 2, 1])
+```
+
+```elixir
+reports
+|> Enum.map(&Day02_Part2.problem_dampener(&1))
+|> Enum.filter(& &1)
+|> length()
+```

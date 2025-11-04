@@ -1,0 +1,193 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+inputs =
+  lines
+  |> Enum.map(&String.split(&1, " "))
+  |> Enum.map(&Enum.at(&1, -1))
+```
+
+```elixir
+reg_a = String.to_integer(Enum.at(inputs, 0))
+reg_b = String.to_integer(Enum.at(inputs, 1))
+reg_c = String.to_integer(Enum.at(inputs, 2))
+
+{program, _} =
+  inputs
+  |> Enum.at(3)
+  |> String.split(",")
+  |> Enum.map(fn s -> String.to_integer(s) end)
+  |> Enum.reduce({%{}, 0}, fn x, {p, ip} -> {Map.put(p, ip, x), ip + 1} end)
+```
+
+```elixir
+defmodule Day17 do
+  @adv 0
+  @bxl 1
+  @bst 2
+  @jnz 3
+  @bxc 4
+  @out 5
+  @bdv 6
+  @cdv 7
+
+  def combo({reg_a, reg_b, reg_c, program, ip, _}) do
+    opcode = program[ip + 1]
+
+    case opcode do
+      0 -> 0
+      1 -> 1
+      2 -> 2
+      3 -> 3
+      4 -> reg_a
+      5 -> reg_b
+      6 -> reg_c
+    end
+  end
+
+  def adv({reg_a, reg_b, reg_c, program, ip, output} = state) do
+    combo_operand = combo(state)
+
+    {div(reg_a, 2 ** combo_operand), reg_b, reg_c, program, ip + 2, output}
+  end
+
+  def bxl({reg_a, reg_b, reg_c, program, ip, output}) do
+    literal_operand = program[ip + 1]
+
+    {reg_a, Bitwise.bxor(reg_b, literal_operand), reg_c, program, ip + 2, output}
+  end
+
+  def bst({reg_a, _, reg_c, program, ip, output} = state) do
+    combo_operand = combo(state)
+
+    {reg_a, rem(combo_operand, 8), reg_c, program, ip + 2, output}
+  end
+
+  def jnz({0, reg_b, reg_c, program, ip, output}) do
+    {0, reg_b, reg_c, program, ip + 2, output}
+  end
+
+  def jnz({reg_a, reg_b, reg_c, program, ip, output}) do
+    literal_operand = program[ip + 1]
+
+    {reg_a, reg_b, reg_c, program, literal_operand, output}
+  end
+
+  def bxc({reg_a, reg_b, reg_c, program, ip, output}) do
+    {reg_a, Bitwise.bxor(reg_b, reg_c), reg_c, program, ip + 2, output}
+  end
+
+  def out({reg_a, reg_b, reg_c, program, ip, output} = state) do
+    combo_operand = combo(state)
+
+    {reg_a, reg_b, reg_c, program, ip + 2, [rem(combo_operand, 8) | output]}
+  end
+
+  def bdv({reg_a, _, reg_c, program, ip, output} = state) do
+    combo_operand = combo(state)
+
+    {reg_a, div(reg_a, 2 ** combo_operand), reg_c, program, ip + 2, output}
+  end
+
+  def cdv({reg_a, reg_b, _, program, ip, output} = state) do
+    combo_operand = combo(state)
+
+    {reg_a, reg_b, div(reg_a, 2 ** combo_operand), program, ip + 2, output}
+  end
+
+  def run({_, _, _, program, ip, output} = state) do
+    # IO.inspect(state)
+
+    if program[ip] == nil do
+      output
+      |> Enum.reverse()
+      |> Enum.map(&Integer.to_string(&1))
+      |> Enum.join(",")
+    else
+      new_state =
+        case program[ip] do
+          @adv -> adv(state)
+          @bxl -> bxl(state)
+          @bst -> bst(state)
+          @jnz -> jnz(state)
+          @bxc -> bxc(state)
+          @out -> out(state)
+          @bdv -> bdv(state)
+          @cdv -> cdv(state)
+        end
+
+      run(new_state)
+    end
+  end
+
+  def run(reg_a, reg_b, reg_c, program) do
+    run({reg_a, reg_b, reg_c, program, 0, []})
+  end
+
+  # brute force doesn't work
+  # tried up to 1000000
+
+  def find_repeat(nmax, _, _, _, _, nmax), do: nmax
+
+  def find_repeat(n, reg_b, reg_c, program, program_string, nmax) do
+    result = run(n, reg_b, reg_c, program)
+
+    n8 = Integer.to_charlist(n, 8)
+
+    if result == program_string do
+      IO.inspect({n8, result})
+      n
+    else
+      IO.inspect({n8, result})
+      find_repeat(n + 1, reg_b, reg_c, program, program_string, nmax)
+    end
+  end
+
+  # works for example
+  def part2_soln(program_string) do
+    program_string_value =
+      program_string
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.to_integer(&1))
+      |> Enum.reverse()
+      |> Enum.reduce(0, fn o,n -> 8*n + o end)
+
+    8*program_string_value
+  end
+end
+```
+
+```elixir
+Day17.run(reg_a, reg_b, reg_c, program)
+```
+
+```elixir
+program_string = Enum.at(inputs, -1)
+```
+
+```elixir
+Day17.part2_soln(program_string)
+```
+
+```elixir
+Day17.find_repeat(1, reg_b, reg_c, program, program_string, 1000000)
+```

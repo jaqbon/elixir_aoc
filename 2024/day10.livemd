@@ -1,0 +1,180 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+  |> Enum.map(fn line -> Enum.map(line, fn s -> String.to_integer(s) end) end)
+```
+
+```elixir
+dims = {length(lines), length(List.first(lines))}
+```
+
+```elixir
+defmodule Day10_Part1 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {n, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, n}
+    end
+  end
+
+  def find_trailheads(grid) do
+    grid
+    |> Enum.reduce([], fn {k, v}, list ->
+      if v == 0, do: [k | list], else: list
+    end)
+  end
+
+  def step({r, c}, dir) do
+    case dir do
+      0 -> {r, c + 1}
+      1 -> {r - 1, c}
+      2 -> {r, c - 1}
+      3 -> {r + 1, c}
+    end
+  end
+
+  def find_next_steps(grid, position) do
+    0..3
+    |> Enum.map(fn dir -> step(position, dir) end)
+    |> Enum.filter(&(&1 != nil))
+    |> Enum.filter(&(grid[&1] == grid[position] + 1))
+  end
+
+  def find_peaks(_, [], _, peaks), do: peaks
+
+  def find_peaks(grid, [position | rest], visited, peaks) do
+    new_visited = MapSet.put(visited, position)
+
+    new_peaks =
+      if grid[position] == 9, do: MapSet.put(peaks, position), else: peaks
+
+    next_steps = find_next_steps(grid, position)
+
+    find_peaks(grid, next_steps ++ rest, new_visited, new_peaks)
+  end
+
+  def find_peaks(grid, trailhead) do
+    find_peaks(grid, [trailhead], MapSet.new(), MapSet.new())
+  end
+
+  def find_trailhead_scores(grid, trailheads) do
+    trailheads
+    |> Enum.map(fn trailhead ->
+      {trailhead, MapSet.size(find_peaks(grid, trailhead))}
+    end)
+  end
+end
+```
+
+```elixir
+grid = Day10_Part1.make_grid(lines)
+```
+
+```elixir
+trailheads = Day10_Part1.find_trailheads(grid)
+```
+
+```elixir
+trailhead_scores = Day10_Part1.find_trailhead_scores(grid, trailheads)
+```
+
+```elixir
+Enum.reduce(trailhead_scores, 0, fn {_, x}, total -> x + total end)
+```
+
+```elixir
+defmodule Day10_Part2 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {n, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, n}
+    end
+  end
+
+  def find_trailheads(grid) do
+    grid
+    |> Enum.reduce([], fn {k, v}, list ->
+      if v == 0, do: [k | list], else: list
+    end)
+  end
+
+  def step({r, c}, dir) do
+    case dir do
+      0 -> {r, c + 1}
+      1 -> {r - 1, c}
+      2 -> {r, c - 1}
+      3 -> {r + 1, c}
+    end
+  end
+
+  def find_next_steps(grid, position) do
+    0..3
+    |> Enum.map(fn dir -> step(position, dir) end)
+    |> Enum.filter(&(&1 != nil))
+    |> Enum.filter(&(grid[&1] == grid[position] + 1))
+  end
+
+  def find_peaks(_, [], _, peaks), do: peaks
+
+  def find_peaks(grid, [position | rest], visited, peaks) do
+    new_visited = MapSet.put(visited, position)
+
+    new_peaks =
+      if grid[position] == 9 do
+        n = peaks[position]
+
+        case n do
+          nil -> Map.put(peaks, position, 1)
+          n -> Map.put(peaks, position, n + 1)
+        end
+      else
+        peaks
+      end
+
+    next_steps = find_next_steps(grid, position)
+
+    find_peaks(grid, next_steps ++ rest, new_visited, new_peaks)
+  end
+
+  def find_peaks(grid, trailhead) do
+    find_peaks(grid, [trailhead], MapSet.new(), Map.new())
+  end
+
+  def find_trailhead_ratings(grid, trailheads) do
+    trailheads
+    |> Enum.map(fn trailhead ->
+      {trailhead,
+       Enum.reduce(find_peaks(grid, trailhead), 0, fn {_, n}, sum ->
+         n + sum
+       end)}
+    end)
+  end
+end
+```
+
+```elixir
+trailhead_ratings = Day10_Part2.find_trailhead_ratings(grid, trailheads)
+```
+
+```elixir
+Enum.reduce(trailhead_ratings, 0, fn {_, n}, total -> total + n end)
+```

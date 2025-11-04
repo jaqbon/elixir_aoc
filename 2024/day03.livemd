@@ -1,0 +1,80 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+muls =
+  input
+  |> Kino.Input.read()
+  |> String.split("mul", trim: true)
+```
+
+```elixir
+Regex.scan(~r/^\(\d+,\d+\).*/, "(12,34)")
+```
+
+```elixir
+String.replace("(12,34)", ~r/[\(\)]/, "")
+```
+
+```elixir
+muls
+|> Enum.map(&Regex.scan(~r/^\(\d+,\d+\)/, &1))
+|> Enum.filter(fn x -> x != [] end)
+|> Enum.map(fn [[s]] -> String.replace(s, ~r/[\(\)]/, "") end)
+|> Enum.map(&String.split(&1, ","))
+|> Enum.map(fn [s1, s2] -> {String.to_integer(s1), String.to_integer(s2)} end)
+|> Enum.map(fn {x, y} -> x * y end)
+|> Enum.sum()
+```
+
+```elixir
+split_on_dont =
+  input
+  |> Kino.Input.read()
+  |> String.split("don't", trim: true)
+```
+
+```elixir
+[good0 | maybes] = split_on_dont
+{good0, maybes}
+```
+
+```elixir
+[good0 | maybes] = split_on_dont
+
+goods =
+  Enum.reduce(maybes, [good0], fn m, gs ->
+    [_ | g] = String.split(m, "do", parts: 2)
+    g ++ gs
+  end)
+```
+
+```elixir
+goods
+|> Enum.map(&String.split(&1, "mul", trim: true))
+|> List.flatten()
+```
+
+```elixir
+goods
+|> Enum.map(&String.split(&1, "mul", trim: true))
+|> List.flatten()
+|> Enum.map(&Regex.scan(~r/^\(\d+,\d+\)/, &1))
+|> Enum.filter(fn x -> x != [] end)
+|> Enum.map(fn [[s]] -> String.replace(s, ~r/[\(\)]/, "") end)
+|> Enum.map(&String.split(&1, ","))
+|> Enum.map(fn [s1, s2] -> {String.to_integer(s1), String.to_integer(s2)} end)
+|> Enum.map(fn {x, y} -> x * y end)
+|> Enum.sum()
+```

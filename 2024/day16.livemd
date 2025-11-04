@@ -1,0 +1,341 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+defmodule Day16_Part1 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def find_start(grid) do
+    grid
+    |> Enum.find(fn {_key, val} -> val == "S" end)
+    |> elem(0)
+  end
+
+  def new_position({r, c}, dir0, ddir) do
+    dir = rem(dir0 + ddir + 4, 4)
+
+    {pos, dir} =
+      case dir do
+        0 -> {{r, c + 1}, 0}
+        1 -> {{r - 1, c}, 1}
+        2 -> {{r, c - 1}, 2}
+        3 -> {{r + 1, c}, 3}
+      end
+
+    cost = if dir == dir0, do: 1, else: 1001
+
+    {pos, dir, cost}
+  end
+
+  def find_allowed_moves(grid, pos, dir) do
+    [1, 0, -1]
+    |> Enum.map(&new_position(pos, dir, &1))
+    |> Enum.filter(fn {pos, _, _} -> grid[pos] != "#" end)
+  end
+
+  def search(_, visited, []), do: visited
+
+  def search(grid, visited, [next | rest]) do
+    {pos, dir, cost, prev} = next
+
+    new_visited =
+      if Map.has_key?(visited, pos) do
+        {_, old_cost, _} = visited[pos]
+
+        if cost < old_cost do
+          Map.put(visited, pos, {dir, cost, prev})
+        else
+          visited
+        end
+      else
+        Map.put(visited, pos, {dir, cost, prev})
+      end
+
+    if grid[pos] == "E" do
+      IO.inspect("E")
+      search(grid, new_visited, rest)
+    else
+      moves =
+        find_allowed_moves(grid, pos, dir)
+        |> Enum.map(fn {p, d, move_cost} -> {p, d, cost + move_cost, pos} end)
+        |> Enum.filter(fn {p, _, c, _} ->
+          if Map.has_key?(visited, p) do
+            {_, c0, _} = visited[p]
+            c < c0
+          else
+            true
+          end
+        end)
+
+      # IO.inspect(length(rest), label: "rest")
+      # IO.inspect(pos)
+      # :timer.sleep(100)
+
+      new_frontier =
+        (moves ++ rest)
+        |> Enum.sort_by(fn {_, _, c, _} -> c end)
+
+      search(grid, new_visited, new_frontier)
+    end
+  end
+
+  def search(grid, start) do
+    # {position, direction, cost, prev}
+    next = [{start, 0, 0, nil}]
+
+    search(grid, %{}, next)
+  end
+
+  def find_final_cost(grid, visited) do
+    pos =
+      grid
+      |> Enum.find(fn {_key, val} -> val == "E" end)
+      |> elem(0)
+
+    {_, cost, _} = visited[pos]
+
+    cost
+  end
+
+  def find_best_path(grid, visited, [pos | _] = path) do
+    if grid[pos] == "S" do
+      path
+    else
+      {_, _, prev} = visited[pos]
+
+      find_best_path(grid, visited, [prev | path])
+    end
+  end
+
+  def find_best_path(grid, visited) do
+    pos =
+      grid
+      |> Enum.find(fn {_key, val} -> val == "E" end)
+      |> elem(0)
+
+    find_best_path(grid, visited, [pos])
+  end
+
+  def display(grid, path) do
+    keys = Map.keys(grid)
+    {_, xmax} = Enum.max_by(keys, fn {_, x} -> x end)
+    {ymax, _} = Enum.max_by(keys, fn {y, _} -> y end)
+
+    0..ymax
+    |> Enum.reduce([], fn y, rows ->
+      row =
+        0..xmax
+        |> Enum.reduce([], fn x, r ->
+          if Enum.member?(path, {y, x}), do: ["O" | r], else: [grid[{y, x}] | r]
+        end)
+        |> Enum.reverse()
+
+      # |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+end
+```
+
+```elixir
+grid = Day16_Part1.make_grid(lines)
+```
+
+```elixir
+start = Day16_Part1.find_start(grid)
+```
+
+```elixir
+visited = Day16_Part1.search(grid, start)
+```
+
+```elixir
+Day16_Part1.find_final_cost(grid, visited)
+```
+
+```elixir
+path = Day16_Part1.find_best_path(grid, visited)
+```
+
+```elixir
+Day16_Part1.display(grid, path)
+```
+
+```elixir
+visited[start]
+```
+
+```elixir
+defmodule Day16_Part2 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def find_start(grid) do
+    grid
+    |> Enum.find(fn {_key, val} -> val == "S" end)
+    |> elem(0)
+  end
+
+  def new_position({r, c}, dir0, ddir) do
+    dir = rem(dir0 + ddir + 4, 4)
+
+    {pos, dir} =
+      case dir do
+        0 -> {{r, c + 1}, 0}
+        1 -> {{r - 1, c}, 1}
+        2 -> {{r, c - 1}, 2}
+        3 -> {{r + 1, c}, 3}
+      end
+
+    cost = if dir == dir0, do: 1, else: 1001
+
+    {pos, dir, cost}
+  end
+
+  def find_allowed_moves(grid, pos, dir) do
+    [1, 0, -1]
+    |> Enum.map(&new_position(pos, dir, &1))
+    |> Enum.filter(fn {pos, _, _} -> grid[pos] != "#" end)
+  end
+
+  def search(_, visited, []), do: visited
+
+  def search(grid, visited, [next | rest]) do
+    {pos, dir, cost, prev} = next
+
+    new_visited =
+      if Map.has_key?(visited, pos) do
+        {_, old_cost, _} = visited[pos]
+
+        if cost < old_cost do
+          Map.put(visited, pos, {dir, cost, prev})
+        else
+          visited
+        end
+      else
+        Map.put(visited, pos, {dir, cost, prev})
+      end
+
+    if grid[pos] == "E" do
+      IO.inspect("E")
+      search(grid, new_visited, rest)
+    else
+      moves =
+        find_allowed_moves(grid, pos, dir)
+        |> Enum.map(fn {p, d, move_cost} -> {p, d, cost + move_cost, pos} end)
+        |> Enum.filter(fn {p, _, c, _} ->
+          if Map.has_key?(visited, p) do
+            {_, c0, _} = visited[p]
+            c < c0
+          else
+            true
+          end
+        end)
+
+      # IO.inspect(length(rest), label: "rest")
+      # IO.inspect(pos)
+      # :timer.sleep(100)
+
+      new_frontier =
+        (moves ++ rest)
+        |> Enum.sort_by(fn {_, _, c, _} -> c end)
+
+      search(grid, new_visited, new_frontier)
+    end
+  end
+
+  def search(grid, start) do
+    # {position, direction, cost, prev}
+    next = [{start, 0, 0, []}]
+
+    search(grid, %{}, next)
+  end
+
+  def find_final_cost(grid, visited) do
+    pos =
+      grid
+      |> Enum.find(fn {_key, val} -> val == "E" end)
+      |> elem(0)
+
+    {_, cost, _} = visited[pos]
+
+    cost
+  end
+
+  def find_best_path(grid, visited, [pos | _] = path) do
+    if grid[pos] == "S" do
+      path
+    else
+      {_, _, prev} = visited[pos]
+
+      find_best_path(grid, visited, [prev | path])
+    end
+  end
+
+  def find_best_path(grid, visited) do
+    pos =
+      grid
+      |> Enum.find(fn {_key, val} -> val == "E" end)
+      |> elem(0)
+
+    find_best_path(grid, visited, [pos])
+  end
+
+  def display(grid, path) do
+    keys = Map.keys(grid)
+    {_, xmax} = Enum.max_by(keys, fn {_, x} -> x end)
+    {ymax, _} = Enum.max_by(keys, fn {y, _} -> y end)
+
+    0..ymax
+    |> Enum.reduce([], fn y, rows ->
+      row =
+        0..xmax
+        |> Enum.reduce([], fn x, r ->
+          if Enum.member?(path, {y, x}), do: ["O" | r], else: [grid[{y, x}] | r]
+        end)
+        |> Enum.reverse()
+
+      # |> Enum.join()
+
+      [row | rows]
+    end)
+    |> Enum.reverse()
+  end
+end
+```
+
+```elixir
+visited2 = Day16_Part2.search(grid, start)
+```

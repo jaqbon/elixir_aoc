@@ -1,0 +1,199 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+rules =
+  lines
+  |> Enum.filter(&String.contains?(&1, "|"))
+  |> Enum.map(&String.split(&1, "|"))
+
+# |> Enum.map(fn [s1,s2] -> [String.to_integer(s1), String.to_integer(s2)] end)
+```
+
+```elixir
+updates =
+  lines
+  |> Enum.filter(&String.contains?(&1, ","))
+  |> Enum.map(&String.split(&1, ","))
+
+# |> Enum.map(fn [s1,s2] -> [String.to_integer(s1), String.to_integer(s2)] end)
+```
+
+```elixir
+rights =
+  rules
+  |> Enum.reduce(%{}, fn [x, y], acc ->
+    if Map.has_key?(acc, x) do
+      Map.put(acc, x, [y | acc[x]])
+    else
+      Map.put(acc, x, [y])
+    end
+  end)
+```
+
+```elixir
+lefts =
+  rights
+  |> Enum.reduce(%{}, fn {l, rs}, acc1 ->
+    rs
+    |> Enum.reduce(acc1, fn r, acc2 ->
+      if Map.has_key?(acc2, r) do
+        Map.put(acc2, r, [l | acc2[r]])
+      else
+        Map.put(acc2, r, [l])
+      end
+    end)
+  end)
+```
+
+```elixir
+defmodule Day05 do
+  def dfs(x, rules, {visited, output}) do
+    if Enum.member?(visited, x) do
+      {visited, output}
+    else
+      afters =
+        Enum.reduce(rules, [], fn [a, b], list ->
+          if a == x, do: [b] ++ list, else: list
+        end)
+
+      # IO.inspect(x)
+      # IO.inspect(afters)
+      {vis, outs} =
+        Enum.reduce(afters, {visited, output}, fn y, acc -> dfs(y, rules, acc) end)
+
+      {[x] ++ vis, [x] ++ outs}
+    end
+  end
+
+  # |> IO.inspect()
+  def good_update?([_], _), do: true
+
+  def good_update?([x | rest], rights) do
+    # IO.inspect([x|rest])
+
+    good =
+      Enum.reduce_while(rest, true, fn y, _ ->
+        case rights[x] do
+          nil ->
+            {:halt, false}
+
+          rs ->
+            case Enum.member?(rs, y) do
+              true -> {:cont, true}
+              _ -> {:halt, false}
+            end
+        end
+      end)
+
+    # |> IO.inspect()
+    if good, do: good_update?(rest, rights), else: false
+  end
+
+  def test_updates(updates, rights) do
+    Enum.map(updates, &good_update?(&1, rights))
+  end
+
+  def rank_update(_, [], _, ranks), do: Enum.reverse(ranks)
+
+  def rank_update(done, [x | rest], rights, ranks) do
+    rank =
+      case rights[x] do
+        nil ->
+          0
+
+        rs ->
+          (done ++ rest)
+          |> Enum.reduce(0, fn o, sum ->
+            if Enum.member?(rs, o), do: 1 + sum, else: sum
+          end)
+      end
+
+    rank_update([x | done], rest, rights, [rank | ranks])
+  end
+
+  def rank_update(update, rights) do
+    rank_update([], update, rights, [])
+  end
+
+  def repair_update(update, rights) do
+    update
+    |> rank_update(rights)
+    |> Enum.zip(update)
+    |> Enum.sort_by(fn {r, _} -> r end, :desc)
+    |> Enum.map(fn {_, p} -> p end)
+  end
+end
+```
+
+```elixir
+Day05.good_update?(["75", "47", "61", "53", "29"], rights)
+```
+
+```elixir
+good_updates =
+  updates
+  |> Day05.test_updates(rights)
+  |> Enum.zip(updates)
+  |> Enum.filter(fn {good, _} -> good end)
+  |> Enum.map(fn {_, u} -> u end)
+
+total_middles_of_goods =
+  good_updates
+  |> Enum.reduce(0, fn ps, sum ->
+    sum + String.to_integer(Enum.at(ps, div(length(ps), 2)))
+  end)
+```
+
+```elixir
+good_updates
+```
+
+```elixir
+bad_updates =
+  updates
+  |> Day05.test_updates(rights)
+  |> Enum.zip(updates)
+  |> Enum.filter(fn {good, _} -> !good end)
+  |> Enum.map(fn {_, u} -> u end)
+```
+
+```elixir
+Day05.rank_update(["75", "97", "47", "61", "53"], rights)
+```
+
+```elixir
+Day05.repair_update(["61", "13", "29"], rights)
+```
+
+```elixir
+repaired_updates =
+  bad_updates
+  |> Enum.map(&Day05.repair_update(&1, rights))
+```
+
+```elixir
+total_middles_of_repaird =
+  repaired_updates
+  |> Enum.reduce(0, fn ps, sum ->
+    sum + String.to_integer(Enum.at(ps, div(length(ps), 2)))
+  end)
+```

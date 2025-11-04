@@ -1,0 +1,189 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+defmodule Day21 do
+  @keypad_1_start {2, 3}
+  @keypad_2_start {2, 0}
+  @keypad_3_start {2, 0}
+  @keypad_4_start {2, 0}
+
+  def keypad_1_position("7"), do: {0, 0}
+  def keypad_1_position("8"), do: {1, 0}
+  def keypad_1_position("9"), do: {2, 0}
+  def keypad_1_position("4"), do: {0, 1}
+  def keypad_1_position("5"), do: {1, 1}
+  def keypad_1_position("6"), do: {2, 1}
+  def keypad_1_position("1"), do: {0, 2}
+  def keypad_1_position("2"), do: {1, 2}
+  def keypad_1_position("3"), do: {2, 2}
+  def keypad_1_position("0"), do: {1, 3}
+  def keypad_1_position("A"), do: {2, 3}
+
+  def keypad_2_position("^"), do: {1, 0}
+  def keypad_2_position("A"), do: {2, 0}
+  def keypad_2_position("<"), do: {0, 1}
+  def keypad_2_position("v"), do: {1, 1}
+  def keypad_2_position(">"), do: {2, 1}
+
+  def keypad_3_position(c), do: keypad_2_position(c)
+  def keypad_4_position(c), do: keypad_2_position(c)
+
+  def keypad_1_character({0, 0}), do: "7"
+  def keypad_1_character({1, 0}), do: "8"
+  def keypad_1_character({2, 0}), do: "9"
+  def keypad_1_character({0, 1}), do: "4"
+  def keypad_1_character({1, 1}), do: "5"
+  def keypad_1_character({2, 1}), do: "6"
+  def keypad_1_character({0, 2}), do: "1"
+  def keypad_1_character({1, 2}), do: "2"
+  def keypad_1_character({2, 2}), do: "3"
+  def keypad_1_character({1, 3}), do: "0"
+  def keypad_1_character({2, 3}), do: "A"
+
+  def keypad_2_character({1, 0}), do: "^"
+  def keypad_2_character({2, 0}), do: "A"
+  def keypad_2_character({0, 1}), do: "<"
+  def keypad_2_character({1, 1}), do: "v"
+  def keypad_2_character({2, 1}), do: ">"
+
+  def keypad_3_character(c), do: keypad_2_character(c)
+  def keypad_4_character(c), do: keypad_2_character(c)
+
+  def add_moves(str, n, c) do
+    l = String.length(str) + n
+
+    String.pad_trailing(str, l, [c])
+  end
+
+  def keypad_moves({x1, y1}, {x2, y2}, type) do
+    {dx, dy} = {x2 - x1, y2 - y1}
+
+    cx = if dx < 0, do: "<", else: ">"
+    cy = if dy < 0, do: "^", else: "v"
+
+    if type == 1 do
+      if dy < 0 do
+        ""
+        |> add_moves(abs(dy), cy)
+        |> add_moves(abs(dx), cx)
+      else
+        ""
+        |> add_moves(abs(dx), cx)
+        |> add_moves(abs(dy), cy)
+      end
+    else
+      if dy < 0 do
+        ""
+        |> add_moves(abs(dx), cx)
+        |> add_moves(abs(dy), cy)
+      else
+        ""
+        |> add_moves(abs(dy), cy)
+        |> add_moves(abs(dx), cx)
+      end
+    end
+  end
+
+  def keypad_1_moves(c1, c2) do
+    p1 = keypad_1_position(c1)
+    p2 = keypad_1_position(c2)
+
+    keypad_moves(p1, p2, 1)
+  end
+
+  def keypad_2_moves(c1, c2) do
+    p1 = keypad_2_position(c1)
+    p2 = keypad_2_position(c2)
+
+    keypad_moves(p1, p2, 2)
+  end
+
+  def keypad_3_moves(c1, c2), do: keypad_2_moves(c1, c2)
+  def keypad_4_moves(c1, c2), do: keypad_2_moves(c1, c2)
+
+  def keypad_1_position_sequence("", seq), do: Enum.reverse(seq)
+
+  def keypad_1_position_sequence(str, seq) do
+    {c, rest} = String.next_grapheme(str)
+
+    keypad_1_position_sequence(rest, [keypad_1_position(c) | seq])
+  end
+
+  def keypad_2_position_sequence("", seq), do: Enum.reverse(seq)
+
+  def keypad_2_position_sequence(str, seq) do
+    {c, rest} = String.next_grapheme(str)
+
+    keypad_2_position_sequence(rest, [keypad_2_position(c) | seq])
+  end
+
+  def keypad_1_position_sequence(str), do: keypad_1_position_sequence(str, [@keypad_1_start])
+  def keypad_2_position_sequence(str), do: keypad_2_position_sequence(str, [@keypad_2_start])
+  def keypad_3_position_sequence(str), do: keypad_2_position_sequence(str, [@keypad_2_start])
+  def keypad_4_position_sequence(str), do: keypad_2_position_sequence(str, [@keypad_2_start])
+
+  def keypad_1_move_sequence([{_, _}], seq), do: Enum.join(Enum.reverse(seq))
+
+  def keypad_1_move_sequence([p1, p2 | rest], seq) do
+    c1 = keypad_1_character(p1)
+    c2 = keypad_1_character(p2)
+
+    keypad_1_move_sequence([p2 | rest], ["A", keypad_1_moves(c1, c2) | seq])
+  end
+
+  def keypad_1_move_sequence(positions), do: keypad_1_move_sequence(positions, [])
+
+  def keypad_2_move_sequence([{_, _}], seq), do: Enum.join(Enum.reverse(seq))
+
+  def keypad_2_move_sequence([p1, p2 | rest], seq) do
+    c1 = keypad_2_character(p1)
+    c2 = keypad_2_character(p2)
+
+    keypad_2_move_sequence([p2 | rest], ["A", keypad_2_moves(c1, c2) | seq])
+  end
+
+  def keypad_2_move_sequence(positions), do: keypad_2_move_sequence(positions, [])
+
+  def strip_As(str), do: String.replace(str, "A", "") <> "A"
+end
+```
+
+```elixir
+positions_1 = Day21.keypad_1_position_sequence("029A")
+```
+
+```elixir
+move_sequence_1 = Day21.keypad_1_move_sequence(positions_1)
+```
+
+```elixir
+strip = Day21.strip_As(move_sequence_1)
+```
+
+```elixir
+positions_2 = move_sequence_1 |> Day21.strip_As() |> Day21.keypad_2_position_sequence()
+```
+
+```elixir
+move_sequence_2 = Day21.keypad_2_move_sequence(positions_2)
+```

@@ -1,0 +1,144 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.chunk_every(3)
+```
+
+```elixir
+["Button A: X+94, Y+34", "Button B: X+22, Y+67", "Prize: X=8400, Y=5400"]
+|> Enum.map(&String.split(&1, ","))
+```
+
+```elixir
+defmodule Day13 do
+  def get_button_xy([xstr, ystr]) do
+    dx = String.split(xstr, "+") |> Enum.at(-1) |> String.to_integer()
+    dy = String.split(ystr, "+") |> Enum.at(-1) |> String.to_integer()
+
+    {dx, dy}
+  end
+
+  def get_prize_xy([xstr, ystr]) do
+    x = String.split(xstr, "=") |> Enum.at(-1) |> String.to_integer()
+    y = String.split(ystr, "=") |> Enum.at(-1) |> String.to_integer()
+
+    # {x, y}
+    {x + 10_000_000_000_000, y + 10_000_000_000_000}
+  end
+
+  def make_machine(line) do
+    [button_A, button_B, prize] =
+      line
+      |> Enum.map(&String.split(&1, ","))
+
+    xy_A = get_button_xy(button_A)
+    xy_B = get_button_xy(button_B)
+
+    xy_P = get_prize_xy(prize)
+
+    {xy_A, xy_B, xy_P}
+  end
+
+  def solve_machine({xy_A, xy_B, xy_P}) do
+    {dx_A, dy_A} = xy_A
+    {dx_B, dy_B} = xy_B
+
+    {x_P, y_P} = xy_P
+
+    mat =
+      %{}
+      |> Map.put({1, 1}, dx_A)
+      |> Map.put({1, 2}, dx_B)
+      |> Map.put({2, 1}, dy_A)
+      |> Map.put({2, 2}, dy_B)
+
+    rhs =
+      %{}
+      |> Map.put(1, x_P)
+      |> Map.put(2, y_P)
+
+    det = mat[{1, 1}] * mat[{2, 2}] - mat[{1, 2}] * mat[{2, 1}]
+
+    inv =
+      %{}
+      |> Map.put({1, 1}, mat[{2, 2}])
+      |> Map.put({1, 2}, -mat[{1, 2}])
+      |> Map.put({2, 1}, -mat[{2, 1}])
+      |> Map.put({2, 2}, mat[{1, 1}])
+
+    inv_rhs =
+      %{}
+      |> Map.put(1, inv[{1, 1}] * rhs[1] + inv[{1, 2}] * rhs[2])
+      |> Map.put(2, inv[{2, 1}] * rhs[1] + inv[{2, 2}] * rhs[2])
+
+    case {rem(inv_rhs[1], det), rem(inv_rhs[2], det)} do
+      {0, 0} -> {div(inv_rhs[1], det), div(inv_rhs[2], det)}
+      _ -> nil
+    end
+  end
+
+  def cost(nil), do: 0
+  def cost({a, b}), do: 3 * a + b
+end
+```
+
+```elixir
+machine =
+  Day13.make_machine(["Button A: X+94, Y+34", "Button B: X+22, Y+67", "Prize: X=8400, Y=5400"])
+```
+
+```elixir
+Day13.solve_machine(machine)
+```
+
+```elixir
+machines =
+  lines
+  |> Enum.map(&Day13.make_machine(&1))
+```
+
+```elixir
+presses =
+  machines
+  |> Enum.map(&Day13.solve_machine(&1))
+```
+
+```elixir
+good_presses =
+  presses
+  |> Enum.filter(fn x -> x != nil end)
+
+# |> Enum.filter(fn {a,b} -> a <= 100 and b <= 100 end)
+```
+
+```elixir
+prizes =
+  good_presses
+  |> Enum.count()
+```
+
+```elixir
+costs =
+  good_presses
+  |> Enum.map(&Day13.cost(&1))
+```
+
+```elixir
+total_cost = Enum.sum(costs)
+```
