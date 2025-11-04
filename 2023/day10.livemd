@@ -1,0 +1,27 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.12.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+sketch =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+Part 1
+
+```elixir
+defmodule Part1 do
+end
+```

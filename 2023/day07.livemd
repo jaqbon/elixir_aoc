@@ -1,0 +1,107 @@
+# Untitled notebook
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.12.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+defmodule Cards do
+  def value("A"), do: 14
+  def value("K"), do: 13
+  def value("Q"), do: 12
+  def value("J"), do: 11
+  def value("T"), do: 10
+  def value(c), do: String.to_integer(c)
+
+  def sort_cards(cards) do
+    cards
+    |> String.graphemes()
+    |> Enum.sort_by(&Cards.value(&1), :desc)
+  end
+end
+```
+
+```elixir
+defmodule Hands do
+  def get_type([c, c, c, c, c]), do: :five
+  def get_type([a, a, a, a, b]), do: :four
+  def get_type([a, b, b, b, b]), do: :four
+  def get_type([a, a, a, b, b]), do: :full
+  def get_type([a, a, b, b, b]), do: :full
+  def get_type([a, a, a, b, c]), do: :three
+  def get_type([a, b, b, b, c]), do: :three
+  def get_type([a, b, c, c, c]), do: :three
+  def get_type([a, a, b, b, c]), do: :twopair
+  def get_type([a, a, b, c, c]), do: :twopair
+  def get_type([a, b, b, c, c]), do: :twopair
+  def get_type([a, a, b, c, d]), do: :onepair
+  def get_type([a, b, b, c, d]), do: :onepair
+  def get_type([a, b, c, c, d]), do: :onepair
+  def get_type([a, b, c, d, d]), do: :onepair
+  def get_type([a, b, c, d, e]), do: :highcard
+
+  def make_hand(cards) do
+    cards
+    |> Cards.sort_cards()
+    |> Hands.get_type()
+  end
+
+  def total_rank(cards, hand_rank) do
+    {rank, mult} =
+      cards
+      |> Enum.reverse()
+      |> Enum.reduce({0, 1}, fn c, {s, m} -> {s + Cards.value(c) * m, m * 15} end)
+
+    hand_rank * mult + rank
+  end
+
+  def rank_hand([cards, :five, bet]), do: total_rank(cards, 6)
+  def rank_hand([cards, :four, bet]), do: total_rank(cards, 5)
+  def rank_hand([cards, :full, bet]), do: total_rank(cards, 4)
+  def rank_hand([cards, :three, bet]), do: total_rank(cards, 3)
+  def rank_hand([cards, :twopair, bet]), do: total_rank(cards, 2)
+  def rank_hand([cards, :onepair, bet]), do: total_rank(cards, 1)
+  def rank_hand([cards, :highcard, bet]), do: total_rank(cards, 0)
+
+  def sort_hands(hands) do
+    #    first_sort =
+    #    hands
+    #    |> Enum.sort_by(&rank_hand(&1), :asc)
+    #    |> Enum.chunk_by(fn [_, t, _] -> t end)
+
+    Enum.sort_by(hands, &rank_hand(&1))
+  end
+end
+```
+
+Part 1
+
+```elixir
+hands =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " "))
+  |> Enum.map(fn [c, b] -> [c, String.to_integer(b)] end)
+  |> Enum.map(fn [c, b] -> [String.graphemes(c), Hands.make_hand(c), b] end)
+  |> Hands.sort_hands()
+  #  |> Enum.reduce({0,1,[]}, fn [_,_,bet], {sum,rank,wins} ->
+  #    {sum+rank*bet, rank+1, [rank*bet|wins]} end)
+  |> Enum.reduce({0, 1}, fn [_, _, bet], {sum, rank} ->
+    {sum + rank * bet, rank + 1}
+  end)
+```
+
+Part 2
+
+```elixir
+
+```

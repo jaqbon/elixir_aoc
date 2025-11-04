@@ -1,0 +1,154 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1,"",trim: true))
+```
+
+```elixir
+rows = length(lines)
+```
+
+```elixir
+cols = length(Enum.at(lines, 0))
+```
+
+```elixir
+defmodule Day16 do
+  def make_map(lines) do
+    {_,map} =
+      Enum.reduce(lines, {0,%{}}, fn line, {y,map1} ->
+        {_,new_map1} =
+          Enum.reduce(line, {0,map1}, fn c, {x,map2} ->
+            {x+1, Map.put(map2, {x,y}, {c, []})}
+          end)
+        {y+1, new_map1}
+      end)
+    map
+  end
+
+
+  def move(".", {{x,y},{dx,dy}}), do: [{{x+dx,y+dy},{dx,dy}}]
+
+  def move("/", {{x,y},dir}) do
+    case dir do
+      {dx, 0} -> [{{x,y-dx},{0,-dx}}]
+
+      {0, dy} -> [{{x-dy,y},{-dy,0}}]
+    end
+  end
+
+  def move("\\", {{x,y},dir}) do
+    case dir do
+      {dx, 0} -> [{{x,y+dx},{0,dx}}]
+
+      {0, dy} -> [{{x+dy,y},{dy,0}}]
+    end
+  end
+
+  def move("-", {{x,y},dir}) do
+    case dir do
+      {dx, 0} -> [{{x+dx,y},{dx,0}}]
+
+      {0,  _} -> [{{x+1,y},{1,0}}, {{x-1,y},{-1,0}}]
+    end
+  end
+
+  def move("|", {{x,y},dir}) do
+    case dir do
+      {_,  0} -> [{{x,y+1},{0,1}}, {{x,y-1},{0,-1}}]
+
+      {0, dy} -> [{{x,y+dy},{0,dy}}]
+    end
+  end
+
+
+  def track_beam(map, []), do: map
+
+  def track_beam(map, [{pos,dir} | rest]) do
+    #IO.inspect({pos, dir})
+    #IO.inspect({pos, map[pos]})
+    case map[pos] do
+      nil ->
+        track_beam(map, rest)
+
+      {c,dirs} ->
+        case Enum.member?(dirs, dir) do
+          true ->
+            track_beam(map, rest)
+
+          false ->
+            map1 = Map.replace!(map, pos, {c, [dir | dirs]})
+            pos_dirs = move(c, {pos,dir})
+            track_beam(map1, pos_dirs ++ rest)
+        end
+    end
+  end
+
+  def track_beam(map), do: track_beam(map, [{{0,0}, {1,0}}])
+
+
+  def find_max(_, [], max_val), do: max_val
+
+  def find_max(map, [pos_dir | rest], max_val) do
+    val =
+      map
+      |> track_beam([pos_dir])
+      |> Enum.filter(fn {_, {_,list}} -> length(list) > 0 end)
+      |> Enum.count()
+
+    find_max(map, rest, max(val, max_val))
+  end
+
+  def find_max(map, starts), do: find_max(map, starts, 0)
+end
+```
+
+```elixir
+map = Day16.make_map(lines)
+```
+
+```elixir
+beam_map = Day16.track_beam(map)
+```
+
+```elixir
+beam_map
+|> Enum.filter(fn {_, {_,list}} -> length(list) > 0 end)
+|> Enum.count()
+```
+
+```elixir
+row_starts =
+  0..(rows-1)
+  |> Enum.reduce([], fn row, starts -> [{{0,row},{1,0}},{{cols-1,row},{-1,0}} | starts] end)
+```
+
+```elixir
+col_starts =
+  0..(cols-1)
+  |> Enum.reduce([], fn col, starts -> [{{col,0},{0,1}},{{col,rows-1},{0,-1}} | starts] end)
+```
+
+```elixir
+starts = row_starts ++ col_starts
+```
+
+```elixir
+Day16.find_max(map, starts)
+```

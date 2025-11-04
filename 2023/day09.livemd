@@ -1,0 +1,75 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.12.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+readings =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " "))
+  |> Enum.map(fn strs -> Enum.map(strs, fn str -> String.to_integer(str) end) end)
+```
+
+```elixir
+defmodule Part1 do
+  def diff([_x], acc), do: acc
+  def diff([x1, x2 | xs], acc), do: diff([x2 | xs], [x1 - x2 | acc])
+  def diff(xs), do: diff(Enum.reverse(xs), [])
+
+  def predict(xs, ends) do
+    ds = diff(xs)
+
+    if Enum.all?(ds, &(&1 == 0)) do
+      Enum.reduce(ends, {0, 0}, fn {f, l}, {fsum, lsum} -> {f - fsum, l + lsum} end)
+    else
+      predict(ds, [{List.first(ds), List.last(ds)} | ends])
+    end
+  end
+
+  def predict(xs) do
+    predict(xs, [{List.first(xs), List.last(xs)}])
+  end
+
+  def predict_sum(xss) do
+    Enum.reduce(xss, {0, 0}, fn xs, {fsum, lsum} ->
+      {f, l} = predict(xs)
+      {f + fsum, l + lsum}
+    end)
+  end
+end
+```
+
+```elixir
+diff1 = Part1.diff([10, 13, 16, 21, 30, 45])
+```
+
+```elixir
+diff2 = Part1.diff(diff1)
+```
+
+```elixir
+diff3 = Part1.diff(diff2)
+```
+
+```elixir
+diff4 = Part1.diff(diff3)
+```
+
+```elixir
+Part1.predict([10, 13, 16, 21, 30, 45])
+```
+
+```elixir
+Part1.predict_sum(readings)
+```

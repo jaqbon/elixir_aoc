@@ -1,0 +1,298 @@
+# Untitled notebook
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.12.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, "", trim: true))
+```
+
+```elixir
+rows = length(lines)
+[first_row | _] = lines
+cols = length(first_row)
+```
+
+Part 1
+
+```elixir
+defmodule Part1 do
+  #  def make_grid(lines) do
+  #    for {[line], row} <- Enum.with_index(lines), into: %{} do
+  #      m =
+  #      for {c, col} <- Enum.with_index(String.split(line,"", trim: true)), into: %{} do
+  #        {col, c}
+  #      end 
+  #      {row, m}
+  #    end
+  #  end
+
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def update(".", {pos, wt, sum}), do: {pos - 1, wt, sum}
+  def update("O", {pos, wt, sum}), do: {pos - 1, wt - 1, sum + wt}
+  def update("#", {pos, _, sum}), do: {pos - 1, pos - 1, sum}
+
+  def tilt(grid, rows, cols) do
+    Enum.sum(
+      for col <- 0..(cols - 1) do
+        xs = for row <- 0..(rows - 1), do: grid[{row, col}]
+
+        {_, _, col_sum} =
+          Enum.reduce(xs, {rows, rows, 0}, fn x, state -> update(x, state) end)
+
+        col_sum
+      end
+    )
+  end
+end
+```
+
+```elixir
+grid = Part1.make_grid(lines)
+```
+
+```elixir
+xs = for row <- 0..(rows - 1), do: grid[{row, 2}]
+```
+
+```elixir
+xs
+|> Enum.chunk_by(fn x -> x == "#" end)
+|> Enum.map(fn ys ->
+  Enum.sort_by(ys, fn y ->
+    case y do
+      "0" -> 2
+      "." -> 1
+      _ -> 0
+    end
+  end)
+end)
+|> Enum.reduce([], fn l, ls -> ls ++ l end)
+```
+
+```elixir
+Enum.reduce(xs, {rows, rows, 0}, fn x, state -> Part1.update(x, state) end)
+```
+
+```elixir
+Part1.tilt(grid, rows, cols)
+```
+
+Part 2
+
+```elixir
+defmodule Part2 do
+  # grid indices are canonical "W"
+  # treats original input as a matrix
+  def make_grid([l | _] = lines, input_dir \\ "W") do
+    ni = length(lines)
+    nj = length(l)
+
+    {rows, cols} =
+      case input_dir do
+        "N" -> {nj, ni}
+        "E" -> {ni, nj}
+        "S" -> {nj, ni}
+        "W" -> {ni, nj}
+      end
+
+    for {line, i} <- Enum.with_index(lines),
+        {c, j} <- Enum.with_index(line),
+        into: %{} do
+      case input_dir do
+        "N" -> {{j, ni - i - 1}, c}
+        "E" -> {{ni - i - 1, nj - j - 1}, c}
+        "S" -> {{nj - j - 1, i}, c}
+        "W" -> {{i, j}, c}
+      end
+    end
+    |> Map.put(:rows, rows)
+    |> Map.put(:cols, cols)
+  end
+
+  def make_arrays(grid, "N") do
+    for j <- (grid[:cols] - 1)..0 do
+      for i <- 0..(grid[:rows] - 1), do: grid[{i, j}]
+    end
+  end
+
+  def make_arrays(grid, "E") do
+    for i <- (grid[:rows] - 1)..0 do
+      for j <- (grid[:cols] - 1)..0, do: grid[{i, j}]
+    end
+  end
+
+  def make_arrays(grid, "S") do
+    for j <- 0..(grid[:cols] - 1) do
+      for i <- (grid[:rows] - 1)..0, do: grid[{i, j}]
+    end
+  end
+
+  def make_arrays(grid, "W") do
+    for i <- 0..(grid[:rows] - 1) do
+      for j <- 0..(grid[:cols] - 1), do: grid[{i, j}]
+    end
+  end
+
+  def pack_one_array(xs) do
+    xs
+    |> Enum.chunk_by(fn x -> x == "#" end)
+    |> Enum.map(fn ys ->
+      Enum.sort_by(ys, fn y ->
+        case y do
+          "0" -> 2
+          "." -> 1
+          _ -> 0
+        end
+      end)
+    end)
+    |> Enum.reduce([], fn l, ls -> ls ++ l end)
+  end
+
+  def pack_arrays(xs), do: Enum.map(xs, &pack_one_array(&1))
+
+  def tilt(grid, dir) do
+    grid
+    |> make_arrays(dir)
+    |> pack_arrays
+    |> make_grid(dir)
+  end
+
+  def cycle_one(grid) do
+    grid
+    |> tilt("N")
+    |> tilt("W")
+    |> tilt("S")
+    |> tilt("E")
+  end
+
+  def cycle(grid, n \\ 1) do
+    Enum.reduce(1..n, grid, fn _, g -> cycle_one(g) end)
+  end
+
+  def north_load(grid) do
+    g =
+      grid
+      |> make_arrays("N")
+      |> pack_arrays
+      |> make_grid
+
+    Enum.reduce(0..(g[:rows] - 1), 0, fn i, sum ->
+      sum +
+        Enum.reduce(0..(g[:cols] - 1), 0, fn j, row_sum ->
+          case g[{i, j}] do
+            "O" -> row_sum + g[:cols] - j
+            _ -> row_sum
+          end
+        end)
+    end)
+  end
+
+  def make_loads(grid, n) do
+    {_, loads} =
+      Enum.reduce(1..n, {grid, [{0, north_load(grid)}]}, fn i, {g, lds} ->
+        g1 = cycle_one(g)
+        ld = north_load(g1)
+        {g1, [{i, ld} | lds]}
+      end)
+
+    Enum.reverse(loads)
+  end
+end
+```
+
+```elixir
+lines |> Part2.make_grid() |> Part2.north_load()
+```
+
+```elixir
+g1 = lines |> Part2.make_grid() |> Part2.cycle_one()
+g2 = g1 |> Part2.cycle_one()
+g3 = g2 |> Part2.cycle_one()
+```
+
+```elixir
+Part2.make_arrays(g3, "W")
+```
+
+```elixir
+g3
+|> Part2.make_arrays("N")
+|> Part2.pack_arrays()
+|> Part2.make_grid("N")
+|> Part2.make_arrays("N")
+```
+
+```elixir
+load1000 = lines |> Part2.make_grid() |> Part2.make_loads(1000)
+```
+
+```elixir
+chunks_all =
+  load1000
+  |> Enum.chunk_every(14)
+```
+
+```elixir
+length(chunks_all)
+```
+
+```elixir
+[100, 200, 300, 400, 500, 600, 700, 800, 900, 1000] |> Enum.chunk_every(3, 3, :discard)
+```
+
+```elixir
+chunks =
+  load1000
+  |> Enum.chunk_every(14, 14, :discard)
+```
+
+```elixir
+[first | rest] = chunks
+first
+```
+
+```elixir
+Enum.reduce_while(rest, first, fn x, x0 ->
+  y0 = for {_, z0} <- x0, do: z0
+  y = for {_, z} <- x, do: z
+
+  if y == y0 do
+    {:halt, x0}
+  else
+    {:cont, x}
+  end
+end)
+```
+
+```elixir
+chunks
+```
+
+```elixir
+Enum.take(chunks, 15)
+```
+
+```elixir
+rem(1_000_000_000 - 178, 14)
+```

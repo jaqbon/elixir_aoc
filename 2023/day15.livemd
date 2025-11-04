@@ -1,0 +1,50 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[line] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+steps =
+  line
+  |> String.split(",", trim: true)
+  |> Enum.map(&to_charlist(&1))
+```
+
+```elixir
+defmodule Day15 do
+  def eval_step([], hash), do: hash
+
+  def eval_step([char | rest], hash), do: eval_step(rest, rem(17*(hash + char), 256))
+
+  
+  def get_hash([], hash_list), do: Enum.reverse(hash_list)
+
+  def get_hash([step | rest], hash_list), do: get_hash(rest, [eval_step(step, 0) | hash_list])
+
+  def get_hash(steps), do: get_hash(steps, [])
+end
+```
+
+```elixir
+hash_list = Day15.get_hash(steps)
+```
+
+```elixir
+Enum.sum(hash_list)
+```

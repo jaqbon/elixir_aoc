@@ -1,0 +1,123 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input1 = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines1 =
+  input1
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Part1 do
+  def unpack_game(string) do
+    [name, content] = String.split(string, ":", trim: true)
+
+    [_, num_string] = String.split(name, " ")
+    num = String.to_integer(num_string)
+
+    hands =
+      content
+      |> String.trim_leading()
+      |> String.split(";", trim: true)
+      |> Enum.map(&String.split(&1, ",", trim: true))
+      |> Enum.map(fn list -> Enum.map(list, fn str -> String.trim_leading(str) end) end)
+      |> Enum.map(fn list -> Enum.map(list, fn str -> String.split(str, " ") end) end)
+      |> Enum.map(fn list ->
+        Enum.map(list, fn [nstr, cstr] -> {cstr, String.to_integer(nstr)} end)
+      end)
+
+    {num, hands}
+  end
+
+  def find_color_count(hand, color) do
+    Enum.reduce(hand, 0, fn {c, n}, acc -> if c == color, do: acc + n, else: acc end)
+  end
+
+  def find_hand_color_counts(hand) do
+    colors = ["red", "green", "blue"]
+
+    Enum.map(colors, fn color -> Part1.find_color_count(hand, color) end)
+  end
+
+  def find_game_color_counts({n, hands}) do
+    {n, Enum.map(hands, &Part1.find_hand_color_counts(&1))}
+  end
+
+  def find_game_max_color_counts({n, game_counts}) do
+    max_counts =
+      Enum.reduce(game_counts, {0, 0, 0}, fn [r, g, b], {xr, xg, xb} ->
+        {max(r, xr), max(g, xg), max(b, xb)}
+      end)
+
+    {n, max_counts}
+  end
+
+  def game_possible?({n, {r, g, b}}, {xr, xg, xb}) do
+    {n, r <= xr and g <= xg and b <= xb}
+  end
+
+  def power_of_game_cubes({n, {r, g, b}}) do
+    {n, r * g * b}
+  end
+end
+```
+
+```elixir
+games =
+  lines1
+  |> Enum.map(&Part1.unpack_game(&1))
+```
+
+```elixir
+Part1.find_color_count([{"blue", 3}, {"red", 4}], "green")
+```
+
+```elixir
+Part1.find_hand_color_counts([{"green", 3}, {"red", 6}])
+```
+
+```elixir
+game_counts =
+  Part1.find_game_color_counts(
+    {1, [[{"blue", 3}, {"red", 4}], [{"red", 1}, {"green", 2}, {"blue", 6}], [{"green", 2}]]}
+  )
+```
+
+```elixir
+game_max_counts = Part1.find_game_max_color_counts(game_counts)
+```
+
+```elixir
+Part1.game_possible?(game_max_counts, {12, 13, 14})
+```
+
+```elixir
+max_color_counts = {12, 13, 14}
+
+games
+|> Enum.map(&Part1.find_game_color_counts(&1))
+|> Enum.map(&Part1.find_game_max_color_counts(&1))
+|> Enum.map(&Part1.game_possible?(&1, max_color_counts))
+|> Enum.filter(fn {_, possible} -> possible end)
+|> Enum.reduce(0, fn {id, _}, acc -> acc + id end)
+```
+
+```elixir
+games
+|> Enum.map(&Part1.find_game_color_counts(&1))
+|> Enum.map(&Part1.find_game_max_color_counts(&1))
+|> Enum.map(&Part1.power_of_game_cubes(&1))
+|> Enum.reduce(0, fn {_, p}, acc -> p + acc end)
+```

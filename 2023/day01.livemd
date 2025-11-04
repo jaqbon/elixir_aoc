@@ -1,0 +1,163 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input1 = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines1 =
+  input1
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Part1 do
+  def extract_digits(str) do
+    String.graphemes(str)
+    |> Enum.filter(&String.match?(&1, ~r/\d+/))
+  end
+
+  def first_and_last(digits) do
+    [List.first(digits), List.last(digits)]
+  end
+
+  def to_ints([a, b]) do
+    [String.to_integer(a), String.to_integer(b)]
+  end
+
+  def make_calibration([a, b]) do
+    10 * a + b
+  end
+end
+```
+
+```elixir
+digits =
+  lines1
+  |> Enum.map(&Part1.extract_digits(&1))
+```
+
+```elixir
+f_l =
+  digits
+  |> Enum.map(&Part1.first_and_last(&1))
+```
+
+```elixir
+f_l_ints =
+  f_l |> Enum.map(&Part1.to_ints(&1))
+```
+
+```elixir
+lines1
+|> Enum.map(&Part1.extract_digits(&1))
+|> Enum.map(&Part1.first_and_last(&1))
+|> Enum.map(&Part1.to_ints(&1))
+|> Enum.map(&Part1.make_calibration(&1))
+|> Enum.sum()
+```
+
+```elixir
+input2 = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines2 =
+  input2
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+String.split("vszthreetwo6threethree4two3", "three")
+```
+
+```elixir
+test_split = String.split("abcone2threexyz", "one")
+```
+
+```elixir
+test_split |> Enum.map(&String.length(&1))
+```
+
+```elixir
+defmodule Part2 do
+  def make_splits(sub, line) do
+    String.split(line, sub)
+  end
+
+  def first_and_last(list) do
+    first_last_splits =
+      Enum.map(
+        list,
+        fn {split_list, num} -> {List.first(split_list), List.last(split_list), num} end
+      )
+
+    first = Enum.min_by(first_last_splits, fn {f, _, _} -> String.length(f) end)
+    last = Enum.min_by(first_last_splits, fn {_, l, _} -> String.length(l) end)
+
+    {_, _, n1} = first
+    {_, _, n2} = last
+
+    {n1, n2}
+  end
+
+  def calibration({n1, n2}) do
+    10 * n1 + n2
+  end
+
+  def make_calibrations(line) do
+    subs =
+      [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+
+    nums =
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    # IO.inspect(line)
+
+    subs
+    |> Enum.map(fn sub -> Part2.make_splits(sub, line) end)
+    |> Enum.zip(nums)
+    |> Enum.filter(fn {list, _} -> list != [line] end)
+    |> Part2.first_and_last()
+    |> Part2.calibration()
+  end
+end
+```
+
+```elixir
+# ["xxx7xxx"]
+lines2
+|> Enum.map(&Part2.make_calibrations(&1))
+|> Enum.sum()
+```

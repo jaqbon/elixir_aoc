@@ -1,0 +1,160 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.12.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[instructions | node_map] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+instructions = String.split(instructions, "", trim: true)
+```
+
+```elixir
+node_map =
+  node_map
+  |> Enum.map(&String.split(&1, [" ", "=", "(", ",", ")"], trim: true))
+```
+
+```elixir
+node_map =
+  node_map
+  |> Enum.reduce(%{}, fn [a, b, c], acc ->
+    m = Map.put(%{}, "L", b) |> Map.put("R", c)
+    Map.put(acc, a, m)
+  end)
+```
+
+```elixir
+Map.keys(node_map)
+```
+
+```elixir
+defmodule Part1 do
+  def steps("ZZZ", _, _, n), do: n
+
+  def steps(node, instructions, node_map, n) do
+    dir = Enum.at(instructions, rem(n, length(instructions)))
+    next_node = node_map[node][dir]
+    # {dir, next_node}
+    steps(next_node, instructions, node_map, n + 1)
+  end
+
+  def steps(instructions, node_map) do
+    steps("AAA", instructions, node_map, 0)
+  end
+end
+```
+
+```elixir
+# Part1.steps(instructions, node_map)
+```
+
+Part 2
+
+```elixir
+defmodule Part2 do
+  def ending_in(nodes, c) do
+    Enum.filter(nodes, fn node -> String.last(node) == c end)
+  end
+
+  def update(nodes, instructions, node_map, n) do
+    dir = Enum.at(instructions, rem(n, length(instructions)))
+    for node <- nodes, do: node_map[node][dir]
+  end
+
+  def find_n(nodes, instructions, node_map, n) do
+    ending_in_Z = ending_in(nodes, "Z")
+
+    if length(ending_in_Z) == length(nodes) do
+      {n, ending_in_Z}
+    else
+      new_nodes = update(nodes, instructions, node_map, n)
+      find_n(new_nodes, instructions, node_map, n + 1)
+    end
+  end
+
+  def find_n(instructions, node_map) do
+    nodes =
+      node_map
+      |> Map.keys()
+      |> ending_in("A")
+
+    find_n(nodes, instructions, node_map, 0)
+  end
+
+  def find_cycle(start1, instructions, node_map) do
+    {n1, [first_Z]} = find_n([start1], instructions, node_map, 0)
+    dir = Enum.at(instructions, rem(n1, length(instructions)))
+    start2 = node_map[first_Z][dir]
+    {n2, [second_Z]} = find_n([start2], instructions, node_map, n1 + 1)
+    {n1, n2, n2 - n1}
+  end
+end
+```
+
+```elixir
+inputs = Map.keys(node_map)
+```
+
+```elixir
+input_A = Part2.ending_in(inputs, "A")
+```
+
+```elixir
+step1 = Part2.update(input_A, instructions, node_map, 0)
+```
+
+```elixir
+step2 = Part2.update(step1, instructions, node_map, 1)
+```
+
+```elixir
+step3 = Part2.update(step2, instructions, node_map, 2)
+```
+
+```elixir
+step4 = Part2.update(step3, instructions, node_map, 3)
+```
+
+```elixir
+cycles = Enum.map(input_A, &Part2.find_cycle(&1, instructions, node_map))
+```
+
+```elixir
+cycs = Enum.map(cycles, fn {n, _, _} -> n end)
+```
+
+```elixir
+# https://programming-idioms.org/idiom/75/compute-lcm/983/elixir
+
+defmodule BasicMath do
+  def gcd(a, 0), do: a
+  def gcd(0, b), do: b
+  def gcd(a, b), do: gcd(b, rem(a, b))
+
+  def lcm(0, 0), do: 0
+  def lcm(a, b), do: div(a * b, gcd(a, b))
+end
+```
+
+```elixir
+BasicMath.lcm(1, 5)
+```
+
+```elixir
+Enum.reduce(cycs, 1, fn n, acc -> BasicMath.lcm(n, acc) end)
+```

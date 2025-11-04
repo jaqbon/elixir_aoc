@@ -1,0 +1,136 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+chars = Enum.map(lines, &String.split(&1, "", trim: true))
+```
+
+```elixir
+lines
+```
+
+```elixir
+rows = length(chars)
+[first_row | _] = chars
+cols = length(first_row)
+{rows, cols}
+```
+
+```elixir
+defmodule Part1 do
+  def make_grid(lines) do
+    for {line, row} <- Enum.with_index(lines),
+        {c, col} <- Enum.with_index(line),
+        into: %{} do
+      {{row, col}, c}
+    end
+  end
+
+  def find_symbols(grid) do
+    Enum.reduce(grid, [], fn {{r, c}, s}, acc ->
+      if s == "." or Integer.parse(s) != :error, do: acc, else: [{r, c, s} | acc]
+    end)
+  end
+
+  def find_numbers_in_line(line) do
+    Regex.scan(~r/\d+/, line, return: :index)
+    |> Enum.map(fn [{index, len}] ->
+      {index, len, line |> String.slice(index, len) |> Integer.parse() |> elem(0)}
+    end)
+  end
+
+  def find_numbers(lines) do
+    rows = length(lines)
+    Enum.zip(0..(rows - 1), Enum.map(lines, &Part1.find_numbers_in_line(&1)))
+  end
+
+  def is_adjacent(ni, {nj, l, _}, {si, sj, _}) do
+    abs(ni - si) <= 1 and -1 <= sj - nj and sj - nj <= l
+  end
+
+  def is_part_number?(row, num, symbols) do
+    Enum.any?(symbols, &Part1.is_adjacent(row, num, &1))
+  end
+
+  def find_part_numbers(numbers, symbols) do
+    Enum.reduce(numbers, [], fn {row, line_nums}, acc ->
+      case line_nums do
+        [] -> acc
+        _ -> [Enum.filter(line_nums, &Part1.is_part_number?(row, &1, symbols)) | acc]
+      end
+    end)
+    |> Enum.filter(fn x -> x != [] end)
+    |> List.flatten()
+    |> Enum.map(fn {_, _, x} -> x end)
+  end
+
+  def find_gears(numbers, symbols) do
+    Enum.map(symbols, fn sym ->
+      adjacent_list =
+        Enum.reduce(numbers, [], fn {ni, num_list}, acc ->
+          lst =
+            Enum.reduce(num_list, [], fn num, acc1 ->
+              if Part1.is_adjacent(ni, num, sym), do: [num | acc1], else: acc1
+            end)
+
+          [lst | acc]
+        end)
+        |> Enum.filter(fn x -> x != [] end)
+        |> List.flatten()
+
+      {sym, adjacent_list} |> IO.inspect()
+    end)
+    |> Enum.filter(fn {_, lst} -> length(lst) == 2 end)
+  end
+
+  def find_gear_ratio({_, lst}) do
+    Enum.reduce(lst, 1, fn {_, _, n}, acc -> n * acc end)
+  end
+end
+```
+
+```elixir
+grid = Part1.make_grid(chars)
+```
+
+```elixir
+numbers = Part1.find_numbers(lines)
+```
+
+```elixir
+symbols = Part1.find_symbols(grid)
+```
+
+```elixir
+part_numbers = Part1.find_part_numbers(numbers, symbols)
+```
+
+```elixir
+Enum.sum(part_numbers)
+```
+
+```elixir
+gears = Part1.find_gears(numbers, symbols)
+```
+
+```elixir
+gears
+|> Enum.map(&Part1.find_gear_ratio(&1))
+|> Enum.sum()
+```

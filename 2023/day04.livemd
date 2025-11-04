@@ -1,0 +1,94 @@
+# Day 4
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"},
+  {:nx, "~> 0.1.0"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Please paste your input file:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def extract_game(line) do
+    [card_game_str, winners_numbers_str] = String.split(line, ":", trim: true)
+
+    game_str =
+      card_game_str
+      |> String.split(" ")
+      |> List.last()
+
+    game = String.to_integer(game_str)
+
+    [winners_str, numbers_str] = String.split(winners_numbers_str, "|", trim: true)
+
+    winners_str = String.split(winners_str)
+    numbers_str = String.split(numbers_str)
+
+    winners = Enum.map(winners_str, &String.to_integer(&1))
+    numbers = Enum.map(numbers_str, &String.to_integer(&1))
+
+    {game, winners, numbers}
+  end
+
+  def score_game({g, ws, ns}) do
+    count =
+      Enum.reduce(ns, 0, fn n, acc ->
+        if Enum.member?(ws, n), do: acc + 1, else: acc
+      end)
+
+    if count == 0, do: 0, else: Integer.pow(2, count - 1)
+  end
+end
+```
+
+```elixir
+game = Part1.extract_game("Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53")
+```
+
+```elixir
+Part1.score_game(game)
+```
+
+```elixir
+lines
+|> Enum.map(&Part1.extract_game(&1))
+|> Enum.map(&Part1.score_game(&1))
+|> Enum.sum()
+```
+
+```elixir
+to_nums = fn str ->
+  str
+  |> String.trim()
+  |> String.split()
+  |> Enum.map(&String.to_integer/1)
+end
+```
+
+```elixir
+to_nums.("3 6 9")
+```
+
+```elixir
+cards =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn str -> String.split(str, [":", "|"]) end)
+  |> Enum.map(fn [c, w, n] -> [c, to_nums.(w), to_nums.(n)] end)
+```
