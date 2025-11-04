@@ -1,0 +1,174 @@
+# 2019 Day 12
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+{_, initial_state} =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.replace(&1, ["<", ">", "=", "x", "y", "z", " "], ""))
+  |> Enum.map(&String.split(&1, ","))
+  |> Enum.map(fn l -> Enum.map(l, fn s -> String.to_integer(s) end) end)
+  |> Enum.reduce({0, %{}}, fn [x, y, z], {i, m} ->
+    {i + 1, Map.put(m, i, {{x, y, z}, {0, 0, 0}})}
+  end)
+```
+
+```elixir
+defmodule NBody do
+  def update_velocity(state) do
+    n = map_size(state)
+
+    Enum.reduce(0..(n - 1), state, fn i, s1 ->
+      {{xi, yi, zi}, {vxi, vyi, vzi}} = s1[i]
+
+      {dvx, dvy, dvz} =
+        Enum.reduce(0..(n - 1), {0, 0, 0}, fn j, {vx, vy, vz} ->
+          if i == j do
+            {vx, vy, vz}
+          else
+            {{xj, yj, zj}, _} = s1[j]
+
+            dvx =
+              if xi == xj do
+                0
+              else
+                if xj > xi, do: 1, else: -1
+              end
+
+            dvy =
+              if yi == yj do
+                0
+              else
+                if yj > yi, do: 1, else: -1
+              end
+
+            dvz =
+              if zi == zj do
+                0
+              else
+                if zj > zi, do: 1, else: -1
+              end
+
+            {vx + dvx, vy + dvy, vz + dvz}
+          end
+        end)
+
+      Map.put(s1, i, {{xi, yi, zi}, {vxi + dvx, vyi + dvy, vzi + dvz}})
+    end)
+  end
+
+  def update_position(state) do
+    Enum.reduce(state, %{}, fn {i, {{x, y, z}, {vx, vy, vz}}}, s ->
+      Map.put(s, i, {{x + vx, y + vy, z + vz}, {vx, vy, vz}})
+    end)
+  end
+
+  def potential(state) do
+    Enum.reduce(state, [], fn {_i, {{x, y, z}, _}}, p ->
+      [abs(x) + abs(y) + abs(z) | p]
+    end)
+    |> Enum.reverse()
+  end
+
+  def kinetic(state) do
+    Enum.reduce(state, [], fn {_i, {_, {vx, vy, vz}}}, p ->
+      [abs(vx) + abs(vy) + abs(vz) | p]
+    end)
+    |> Enum.reverse()
+  end
+
+  def total(state) do
+    Enum.zip_with(potential(state), kinetic(state), fn p, k -> p * k end)
+  end
+
+  def find_cycles(_, _, _, {true, true, true}, cycles), do: cycles
+
+  def find_cycles(state, count, {xset0, yset0, zset0}, {xfound, yfound, zfound}, {nx, ny, nz}) do
+    state = state |> NBody.update_velocity() |> NBody.update_position()
+
+    n = map_size(state)
+
+    {xset, yset, zset} =
+      Enum.reduce((n - 1)..0, {[], [], []}, fn i, {xs, ys, zs} ->
+        {{x, y, z}, {vx, vy, vz}} = state[i]
+        {[{x, vx} | xs], [{y, vy} | ys], [{z, vz} | zs]}
+      end)
+
+    {xfound, nx} =
+      if !xfound and xset == xset0 do
+        {true, count}
+      else
+        {xfound, nx}
+      end
+
+    {yfound, ny} =
+      if !yfound and yset == yset0 do
+        {true, count}
+      else
+        {yfound, ny}
+      end
+
+    {zfound, nz} =
+      if !zfound and zset == zset0 do
+        {true, count}
+      else
+        {zfound, nz}
+      end
+
+    find_cycles(state, count + 1, {xset0, yset0, zset0}, {xfound, yfound, zfound}, {nx, ny, nz})
+  end
+end
+```
+
+## Part 1
+
+```elixir
+state =
+  Enum.reduce(1..1000, initial_state, fn _i, s ->
+    s |> NBody.update_velocity() |> NBody.update_position()
+  end)
+
+Enum.sum(NBody.total(state))
+```
+
+## Part 2
+
+```elixir
+n = map_size(initial_state)
+
+{xset0, yset0, zset0} =
+  Enum.reduce((n - 1)..0, {[], [], []}, fn i, {xs, ys, zs} ->
+    {{x, y, z}, {vx, vy, vz}} = initial_state[i]
+    {[{x, vx} | xs], [{y, vy} | ys], [{z, vz} | zs]}
+  end)
+```
+
+```elixir
+cycles =
+  NBody.find_cycles(initial_state, 1, {xset0, yset0, zset0}, {false, false, false}, {0, 0, 0})
+```
+
+```elixir
+defmodule Math do
+  def lcm(0, 0), do: 0
+  def lcm(a, b), do: div(a * b, Integer.gcd(a, b))
+end
+```
+
+```elixir
+{nx, ny, nz} = cycles
+
+Math.lcm(Math.lcm(nx, ny), nz)
+```

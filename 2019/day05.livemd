@@ -1,0 +1,289 @@
+# Day 5
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+code =
+  input
+  |> Kino.Input.read()
+  |> String.replace("\n", "")
+  |> String.split(",", trim: true)
+  |> Enum.with_index(fn e, i -> {i, String.to_integer(e)} end)
+  |> Enum.reduce(Map.new(), fn {i, e}, acc -> Map.put(acc, i, e) end)
+```
+
+## Part 1
+
+```elixir
+defmodule Intcode do
+  def get_opcode(x) do
+    case rem(x, 100) do
+      1 -> :add
+      2 -> :mult
+      3 -> :input
+      4 -> :output
+      99 -> :halt
+    end
+  end
+
+  def get_next_mode(modes) do
+    mode =
+      case rem(modes, 10) do
+        0 -> :position
+        1 -> :immediate
+      end
+
+    {mode, div(modes, 10)}
+  end
+
+  def get_modes(opcode, modes), do: get_modes(opcode, modes, [])
+
+  def get_modes(opcode, 0, mode_list) do
+    needed_length =
+      case opcode do
+        :add -> 3
+        :mult -> 3
+        :input -> 1
+        :output -> 1
+        :halt -> 0
+      end
+
+    extra = needed_length - length(mode_list)
+
+    if extra > 0 do
+      1..extra
+      |> Enum.reduce(mode_list, fn _n, ml -> [:position | ml] end)
+      |> Enum.reverse()
+    else
+      Enum.reverse(mode_list)
+    end
+  end
+
+  def get_modes(opcode, modes, mode_list) do
+    {mode, modes} = get_next_mode(modes)
+    get_modes(opcode, modes, [mode | mode_list])
+  end
+
+  def eval_add(code, modes, pc) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 + op2), pc + 4)
+  end
+
+  def eval_mult(code, modes, pc) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 * op2), pc + 4)
+  end
+
+  def eval_input(code, _modes, pc) do
+    # x = IO.gets("input") |> String.to_integer()
+    x = 1
+    eval(Map.put(code, code[pc + 1], x), pc + 2)
+  end
+
+  def eval_output(code, modes, pc) do
+    [mode] = modes
+    x = if mode == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    IO.puts("output #{x}")
+    eval(code, pc + 2)
+  end
+
+  def eval(code, pc) do
+    opcode = get_opcode(code[pc])
+
+    modes = get_modes(opcode, div(code[pc], 100))
+
+    # IO.inspect([code, pc, opcode, modes])
+
+    case opcode do
+      :add -> eval_add(code, modes, pc)
+      :mult -> eval_mult(code, modes, pc)
+      :input -> eval_input(code, modes, pc)
+      :output -> eval_output(code, modes, pc)
+      :halt -> code[0]
+      _ -> IO.puts("1202")
+    end
+  end
+end
+```
+
+```elixir
+Intcode.eval(code, 0)
+```
+
+## Part 2
+
+```elixir
+defmodule Intcode2 do
+  def get_opcode(x) do
+    case rem(x, 100) do
+      1 -> :add
+      2 -> :mult
+      3 -> :input
+      4 -> :output
+      5 -> :jmp_true
+      6 -> :jmp_false
+      7 -> :lt
+      8 -> :eq
+      99 -> :halt
+    end
+  end
+
+  def get_next_mode(modes) do
+    mode =
+      case rem(modes, 10) do
+        0 -> :position
+        1 -> :immediate
+      end
+
+    {mode, div(modes, 10)}
+  end
+
+  def get_modes(opcode, modes), do: get_modes(opcode, modes, [])
+
+  def get_modes(opcode, 0, mode_list) do
+    needed_length =
+      case opcode do
+        :add -> 3
+        :mult -> 3
+        :input -> 1
+        :output -> 1
+        :jmp_true -> 2
+        :jmp_false -> 2
+        :lt -> 3
+        :eq -> 3
+        :halt -> 0
+      end
+
+    extra = needed_length - length(mode_list)
+
+    if extra > 0 do
+      1..extra
+      |> Enum.reduce(mode_list, fn _n, ml -> [:position | ml] end)
+      |> Enum.reverse()
+    else
+      Enum.reverse(mode_list)
+    end
+  end
+
+  def get_modes(opcode, modes, mode_list) do
+    {mode, modes} = get_next_mode(modes)
+    get_modes(opcode, modes, [mode | mode_list])
+  end
+
+  def eval_add(code, modes, pc) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 + op2), pc + 4)
+  end
+
+  def eval_mult(code, modes, pc) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 * op2), pc + 4)
+  end
+
+  def eval_input(code, _modes, pc) do
+    # x = IO.gets("input") |> String.to_integer()
+    x = input_value()
+    eval(Map.put(code, code[pc + 1], x), pc + 2)
+  end
+
+  def eval_output(code, modes, pc) do
+    [mode] = modes
+    x = if mode == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    IO.puts("output #{x}")
+    eval(code, pc + 2)
+  end
+
+  def eval_jmp_true(code, modes, pc) do
+    [mode1, mode2] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    if op1 != 0, do: eval(code, op2), else: eval(code, pc + 3)
+  end
+
+  def eval_jmp_false(code, modes, pc) do
+    [mode1, mode2] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    if op1 == 0, do: eval(code, op2), else: eval(code, pc + 3)
+  end
+
+  def eval_lt(code, modes, pc) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    result = if op1 < op2, do: 1, else: 0
+
+    eval(Map.put(code, code[pc + 3], result), pc + 4)
+  end
+
+  def eval_eq(code, modes, pc) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    result = if op1 == op2, do: 1, else: 0
+
+    eval(Map.put(code, code[pc + 3], result), pc + 4)
+  end
+
+  def eval(code, pc) do
+    opcode = get_opcode(code[pc])
+
+    modes = get_modes(opcode, div(code[pc], 100))
+
+    # IO.inspect([code, pc, opcode, modes])
+
+    case opcode do
+      :add -> eval_add(code, modes, pc)
+      :mult -> eval_mult(code, modes, pc)
+      :input -> eval_input(code, modes, pc)
+      :output -> eval_output(code, modes, pc)
+      :jmp_true -> eval_jmp_true(code, modes, pc)
+      :jmp_false -> eval_jmp_false(code, modes, pc)
+      :lt -> eval_lt(code, modes, pc)
+      :eq -> eval_eq(code, modes, pc)
+      :halt -> code[0]
+      _ -> IO.puts("1202")
+    end
+  end
+
+  def input_value(), do: 5
+end
+```
+
+```elixir
+Intcode2.eval(code, 0)
+```

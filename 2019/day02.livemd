@@ -1,0 +1,79 @@
+# Day 2
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+code =
+  input
+  |> Kino.Input.read()
+  |> String.replace("\n", "")
+  |> String.split(",", trim: true)
+  |> Enum.with_index(fn e, i -> {i, String.to_integer(e)} end)
+  |> Enum.reduce(Map.new(), fn {i, e}, acc -> Map.put(acc, i, e) end)
+```
+
+## Part 1
+
+```elixir
+defmodule Intcode do
+  def eval(code, pc) do
+    # IO.inspect(code)
+    # case code[pc] do
+    #  1 -> IO.puts("#{pc}, (#{code[code[pc+1]]} + #{code[code[pc+2]]} -> #{code[pc+3]})")
+    #  2 -> IO.puts("#{pc}, (#{code[code[pc+1]]} * #{code[code[pc+2]]} -> #{code[pc+3]})")
+    # 99 -> IO.puts("halt #{code[0]}")
+    # end
+    case code[pc] do
+      1 -> eval(Map.put(code, code[pc + 3], code[code[pc + 1]] + code[code[pc + 2]]), pc + 4)
+      2 -> eval(Map.put(code, code[pc + 3], code[code[pc + 1]] * code[code[pc + 2]]), pc + 4)
+      99 -> code[0]
+      _ -> IO.puts("1202 alarm")
+    end
+  end
+
+  def find_noun_verb(code, target), do: find_noun_verb(code, target, 0, 0)
+
+  def find_noun_verb(_, _, 100, _), do: "crap"
+
+  def find_noun_verb(code, target, noun, verb) do
+    result =
+      code
+      |> Map.put(1, noun)
+      |> Map.put(2, verb)
+      |> Intcode.eval(0)
+
+    case result do
+      ^target ->
+        100 * noun + verb
+
+      _ ->
+        noun = noun + div(verb + 1, 100)
+        verb = rem(verb + 1, 100)
+        find_noun_verb(code, target, noun, verb)
+    end
+  end
+end
+```
+
+```elixir
+code
+|> Map.put(1, 12)
+|> Map.put(2, 2)
+|> Intcode.eval(0)
+```
+
+## Part 2
+
+```elixir
+Intcode.find_noun_verb(code, 19_690_720)
+```

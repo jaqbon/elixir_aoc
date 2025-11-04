@@ -1,0 +1,118 @@
+# 2019 Day 6
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+orbits =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+tree =
+  Enum.reduce(orbits, %{}, fn o, t ->
+    [x, y] = String.split(o, ")")
+
+    t =
+      case t[x] do
+        nil ->
+          t = Map.put(t, x, {nil, nil, [y]})
+
+          case t[y] do
+            nil -> Map.put(t, y, {nil, x, []})
+            {_, _, c} -> Map.put(t, y, {nil, x, c})
+          end
+
+        {nil, p, ys} ->
+          t = Map.put(t, x, {nil, p, [y | ys]})
+
+          case t[y] do
+            nil -> Map.put(t, y, {nil, x, []})
+            {_, _, c} -> Map.put(t, y, {nil, x, c})
+          end
+      end
+  end)
+```
+
+```elixir
+defmodule Part1 do
+  def make_depth(tree, name, depth) do
+    case tree[name] do
+      {_, parent, []} ->
+        {Map.put(tree, name, {depth, parent, []}), depth}
+
+      {_, parent, children} ->
+        tree = Map.put(tree, name, {depth, parent, children})
+
+        Enum.reduce(children, {tree, depth}, fn nm, {tree, sum} ->
+          {tree, sum1} = make_depth(tree, nm, depth + 1)
+          {tree, sum + sum1}
+        end)
+    end
+  end
+end
+```
+
+## Part 1
+
+```elixir
+{tree, sum} = Part1.make_depth(tree, "COM", 0)
+```
+
+## Part 2
+
+```elixir
+you =
+  Enum.reduce_while(1..1000, {"YOU", []}, fn _i, {name, parents} ->
+    {_, parent, _} = tree[name]
+
+    case parent do
+      nil -> {:halt, parents}
+      _ -> {:cont, {parent, [parent | parents]}}
+    end
+  end)
+```
+
+```elixir
+san =
+  Enum.reduce_while(1..1000, {"SAN", []}, fn _i, {name, parents} ->
+    {_, parent, _} = tree[name]
+
+    case parent do
+      nil -> {:halt, parents}
+      _ -> {:cont, {parent, [parent | parents]}}
+    end
+  end)
+```
+
+```elixir
+common =
+  Enum.reduce_while(you, {nil, san}, fn y, {c, [s | ss]} ->
+    if y == s do
+      {:cont, {y, ss}}
+    else
+      {:halt, c}
+    end
+  end)
+```
+
+```elixir
+{d_you, _, _} = tree["YOU"]
+{d_san, _, _} = tree["SAN"]
+{d_com, _, _} = tree[common]
+
+IO.puts("#{d_you}  #{d_san}  #{d_com}")
+
+d_you - 1 + (d_san - 1) - 2 * d_com
+```

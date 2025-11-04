@@ -1,0 +1,99 @@
+# 2019 Day 8
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+rows = 6
+cols = 25
+
+image =
+  input
+  |> Kino.Input.read()
+  |> String.replace("\n", "")
+  |> String.to_charlist()
+  |> Enum.map(&(&1 - ?0))
+  |> Enum.chunk_every(rows * cols)
+  |> Enum.with_index(1)
+  |> Enum.reduce(%{}, fn {lyr, idx}, img -> Map.put(img, idx, lyr) end)
+
+# |> Enum.map(&Enum.chunk_every(&1,cols))
+# |> Enum.chunk_every(rows)
+```
+
+## Part 1
+
+```elixir
+layers = map_size(image)
+
+counts = Enum.reduce(1..layers, %{}, fn i, cnts -> Map.put(cnts, i, {0, 0, 0}) end)
+
+counts =
+  Enum.reduce(image, counts, fn {idx, img}, counts ->
+    cnts =
+      Enum.reduce(img, counts[idx], fn x, {c0, c1, c2} ->
+        case x do
+          0 -> {c0 + 1, c1, c2}
+          1 -> {c0, c1 + 1, c2}
+          2 -> {c0, c1, c2 + 1}
+          _ -> {c0, c1, c2}
+        end
+      end)
+
+    Map.put(counts, idx, cnts)
+  end)
+```
+
+```elixir
+{_idx, {_c0, c1, c2}} = Enum.min_by(counts, fn {_idx, {c0, _, _}} -> c0 end)
+
+c1 * c2
+```
+
+## Part 2
+
+```elixir
+final =
+  Enum.reduce(2..layers, image[1], fn i, fnl ->
+    Enum.zip_with(fnl, image[i], fn x, y ->
+      if x < 2 do
+        x
+      else
+        y
+      end
+    end)
+  end)
+```
+
+```elixir
+final = Enum.chunk_every(final, cols)
+```
+
+```elixir
+Enum.each(final, fn pixels ->
+  final_row =
+    pixels
+    |> Enum.reduce([], fn p, r ->
+      c =
+        case p do
+          0 -> ' '
+          1 -> '#'
+        end
+
+      [c | r]
+    end)
+    |> Enum.reverse()
+
+  IO.write(final_row)
+  IO.puts("")
+end)
+```

@@ -1,0 +1,573 @@
+# Day 7
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+code =
+  input
+  |> Kino.Input.read()
+  |> String.replace("\n", "")
+  |> String.split(",", trim: true)
+  |> Enum.with_index(fn e, i -> {i, String.to_integer(e)} end)
+  |> Enum.reduce(Map.new(), fn {i, e}, acc -> Map.put(acc, i, e) end)
+```
+
+```elixir
+
+```
+
+```elixir
+defmodule AmpIO do
+  use Agent
+
+  def start(initial_list) do
+    Agent.start(fn -> initial_list end)
+  end
+
+  def stop(pid), do: Agent.stop(pid)
+
+  def push(pid, x) do
+    Agent.update(pid, fn state -> [x | state] end)
+  end
+
+  def pop(pid) do
+    Agent.get_and_update(pid, fn state ->
+      case state do
+        [] -> {nil, []}
+        [x | s1] -> {x, s1}
+      end
+    end)
+  end
+end
+```
+
+## Part 1
+
+```elixir
+defmodule Amp do
+  def get_opcode(x) do
+    case rem(x, 100) do
+      1 -> :add
+      2 -> :mult
+      3 -> :input
+      4 -> :output
+      5 -> :jmp_true
+      6 -> :jmp_false
+      7 -> :lt
+      8 -> :eq
+      99 -> :halt
+    end
+  end
+
+  def get_next_mode(modes) do
+    mode =
+      case rem(modes, 10) do
+        0 -> :position
+        1 -> :immediate
+      end
+
+    {mode, div(modes, 10)}
+  end
+
+  def get_modes(opcode, modes), do: get_modes(opcode, modes, [])
+
+  def get_modes(opcode, 0, mode_list) do
+    needed_length =
+      case opcode do
+        :add -> 3
+        :mult -> 3
+        :input -> 1
+        :output -> 1
+        :jmp_true -> 2
+        :jmp_false -> 2
+        :lt -> 3
+        :eq -> 3
+        :halt -> 0
+      end
+
+    extra = needed_length - length(mode_list)
+
+    if extra > 0 do
+      1..extra
+      |> Enum.reduce(mode_list, fn _n, ml -> [:position | ml] end)
+      |> Enum.reverse()
+    else
+      Enum.reverse(mode_list)
+    end
+  end
+
+  def get_modes(opcode, modes, mode_list) do
+    {mode, modes} = get_next_mode(modes)
+    get_modes(opcode, modes, [mode | mode_list])
+  end
+
+  def eval_add(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 + op2), pc + 4, i_pid, o_pid)
+  end
+
+  def eval_mult(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 * op2), pc + 4, i_pid, o_pid)
+  end
+
+  def eval_input(code, _modes, pc, i_pid, o_pid) do
+    # x = IO.gets("input") |> String.to_integer()
+    x = AmpIO.pop(i_pid)
+    eval(Map.put(code, code[pc + 1], x), pc + 2, i_pid, o_pid)
+  end
+
+  def eval_output(code, modes, pc, i_pid, o_pid) do
+    [mode] = modes
+    x = if mode == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    AmpIO.push(o_pid, x)
+    # IO.puts("output #{x}")
+    eval(code, pc + 2, i_pid, o_pid)
+  end
+
+  def eval_jmp_true(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    if op1 != 0, do: eval(code, op2, i_pid, o_pid), else: eval(code, pc + 3, i_pid, o_pid)
+  end
+
+  def eval_jmp_false(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    if op1 == 0, do: eval(code, op2, i_pid, o_pid), else: eval(code, pc + 3, i_pid, o_pid)
+  end
+
+  def eval_lt(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    result = if op1 < op2, do: 1, else: 0
+
+    eval(Map.put(code, code[pc + 3], result), pc + 4, i_pid, o_pid)
+  end
+
+  def eval_eq(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    result = if op1 == op2, do: 1, else: 0
+
+    eval(Map.put(code, code[pc + 3], result), pc + 4, i_pid, o_pid)
+  end
+
+  def eval(code, pc, i_pid, o_pid) do
+    opcode = get_opcode(code[pc])
+
+    modes = get_modes(opcode, div(code[pc], 100))
+
+    # IO.inspect([code, pc, opcode, modes])
+
+    case opcode do
+      :add ->
+        eval_add(code, modes, pc, i_pid, o_pid)
+
+      :mult ->
+        eval_mult(code, modes, pc, i_pid, o_pid)
+
+      :input ->
+        eval_input(code, modes, pc, i_pid, o_pid)
+
+      :output ->
+        eval_output(code, modes, pc, i_pid, o_pid)
+
+      :jmp_true ->
+        eval_jmp_true(code, modes, pc, i_pid, o_pid)
+
+      :jmp_false ->
+        eval_jmp_false(code, modes, pc, i_pid, o_pid)
+
+      :lt ->
+        eval_lt(code, modes, pc, i_pid, o_pid)
+
+      :eq ->
+        eval_eq(code, modes, pc, i_pid, o_pid)
+
+      :halt ->
+        x = AmpIO.pop(o_pid)
+        AmpIO.stop(i_pid)
+        AmpIO.stop(o_pid)
+        x
+
+      _ ->
+        IO.puts("1202")
+    end
+  end
+
+  def run(code, phase, input) do
+    {:ok, i_pid} = AmpIO.start([phase, input])
+    {:ok, o_pid} = AmpIO.start([])
+
+    eval(code, 0, i_pid, o_pid)
+  end
+end
+```
+
+```elixir
+Enum.reduce([1, 0, 4, 3, 2], 0, fn phase, last_output -> Amp.run(code, phase, last_output) end)
+```
+
+```elixir
+defmodule Permutations do
+  def of([]) do
+    [[]]
+  end
+
+  def of(list) do
+    for h <- list, t <- of(list -- [h]), do: [h | t]
+  end
+end
+```
+
+```elixir
+perms = Permutations.of(Enum.to_list(0..4))
+```
+
+```elixir
+outputs =
+  Enum.map(perms, fn phases ->
+    Enum.reduce(phases, 0, fn phase, last_output -> Amp.run(code, phase, last_output) end)
+  end)
+```
+
+```elixir
+Enum.max(outputs)
+```
+
+## Part 2
+
+```elixir
+defmodule IPC do
+  def new(n) do
+    :ets.new(:ipc, [:set, :public, :named_table])
+    Enum.each(0..(n - 1), fn i -> :ets.insert(:ipc, {i, -999}) end)
+  end
+
+  def insert(i, x) do
+    :ets.insert(:ipc, {i, x})
+  end
+
+  def lookup(i) do
+    [{^i, x}] = :ets.lookup(:ipc, i)
+    x
+  end
+
+  def delete(), do: :ets.delete(:ipc)
+end
+```
+
+```elixir
+defmodule Feedback do
+  def get_opcode(x) do
+    case rem(x, 100) do
+      1 -> :add
+      2 -> :mult
+      3 -> :input
+      4 -> :output
+      5 -> :jmp_true
+      6 -> :jmp_false
+      7 -> :lt
+      8 -> :eq
+      99 -> :halt
+    end
+  end
+
+  def get_next_mode(modes) do
+    mode =
+      case rem(modes, 10) do
+        0 -> :position
+        1 -> :immediate
+      end
+
+    {mode, div(modes, 10)}
+  end
+
+  def get_modes(opcode, modes), do: get_modes(opcode, modes, [])
+
+  def get_modes(opcode, 0, mode_list) do
+    needed_length =
+      case opcode do
+        :add -> 3
+        :mult -> 3
+        :input -> 1
+        :output -> 1
+        :jmp_true -> 2
+        :jmp_false -> 2
+        :lt -> 3
+        :eq -> 3
+        :halt -> 0
+      end
+
+    extra = needed_length - length(mode_list)
+
+    if extra > 0 do
+      1..extra
+      |> Enum.reduce(mode_list, fn _n, ml -> [:position | ml] end)
+      |> Enum.reverse()
+    else
+      Enum.reverse(mode_list)
+    end
+  end
+
+  def get_modes(opcode, modes, mode_list) do
+    {mode, modes} = get_next_mode(modes)
+    get_modes(opcode, modes, [mode | mode_list])
+  end
+
+  def eval_add(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 + op2), pc + 4, i_pid, o_pid)
+  end
+
+  def eval_mult(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    eval(Map.put(code, code[pc + 3], op1 * op2), pc + 4, i_pid, o_pid)
+  end
+
+  def eval_input(code, _modes, pc, i_pid, o_pid) do
+    x = AmpIO.pop(i_pid)
+
+    case x do
+      # IO.puts("waiting") ;
+      nil ->
+        {code, pc}
+
+      # IO.puts("input #{x}")
+      _ ->
+        eval(Map.put(code, code[pc + 1], x), pc + 2, i_pid, o_pid)
+    end
+  end
+
+  def eval_output(code, modes, pc, i_pid, o_pid) do
+    [mode] = modes
+    x = if mode == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    AmpIO.push(o_pid, x)
+    # IO.puts("output #{x}")
+    eval(code, pc + 2, i_pid, o_pid)
+  end
+
+  def eval_jmp_true(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    if op1 != 0, do: eval(code, op2, i_pid, o_pid), else: eval(code, pc + 3, i_pid, o_pid)
+  end
+
+  def eval_jmp_false(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    if op1 == 0, do: eval(code, op2, i_pid, o_pid), else: eval(code, pc + 3, i_pid, o_pid)
+  end
+
+  def eval_lt(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    result = if op1 < op2, do: 1, else: 0
+
+    eval(Map.put(code, code[pc + 3], result), pc + 4, i_pid, o_pid)
+  end
+
+  def eval_eq(code, modes, pc, i_pid, o_pid) do
+    [mode1, mode2, :position] = modes
+
+    op1 = if mode1 == :position, do: code[code[pc + 1]], else: code[pc + 1]
+    op2 = if mode2 == :position, do: code[code[pc + 2]], else: code[pc + 2]
+
+    result = if op1 == op2, do: 1, else: 0
+
+    eval(Map.put(code, code[pc + 3], result), pc + 4, i_pid, o_pid)
+  end
+
+  def eval(code, pc, i_pid, o_pid) do
+    opcode = get_opcode(code[pc])
+
+    modes = get_modes(opcode, div(code[pc], 100))
+
+    # IO.inspect([code, pc, opcode, modes])
+
+    case opcode do
+      :add ->
+        eval_add(code, modes, pc, i_pid, o_pid)
+
+      :mult ->
+        eval_mult(code, modes, pc, i_pid, o_pid)
+
+      :input ->
+        eval_input(code, modes, pc, i_pid, o_pid)
+
+      :output ->
+        eval_output(code, modes, pc, i_pid, o_pid)
+
+      :jmp_true ->
+        eval_jmp_true(code, modes, pc, i_pid, o_pid)
+
+      :jmp_false ->
+        eval_jmp_false(code, modes, pc, i_pid, o_pid)
+
+      :lt ->
+        eval_lt(code, modes, pc, i_pid, o_pid)
+
+      :eq ->
+        eval_eq(code, modes, pc, i_pid, o_pid)
+
+      :halt ->
+        :ok
+
+      _ ->
+        IO.puts("1202")
+        :choke
+    end
+  end
+
+  def resume({code, pc}, i_pid, o_pid), do: eval(code, pc, i_pid, o_pid)
+end
+```
+
+```elixir
+phases = [9, 8, 7, 6, 5]
+```
+
+```elixir
+defmodule RunFeedback do
+  def run(code, phases) do
+    IPC.new(5)
+    Enum.each(0..4, fn i -> IPC.insert(i, {code, 0}) end)
+
+    {:ok, i_pid} = AmpIO.start([])
+    {:ok, o_pid} = AmpIO.start([])
+
+    # prime for first amp
+    AmpIO.push(o_pid, 0)
+
+    Enum.reduce(phases, 0, fn phase, i ->
+      # IO.puts("amp #{i}")
+
+      AmpIO.push(i_pid, AmpIO.pop(o_pid))
+      AmpIO.push(i_pid, phase)
+
+      case Feedback.resume(IPC.lookup(i), i_pid, o_pid) do
+        # IO.puts("#{i} finished")
+        :ok ->
+          :ok
+
+        :choke ->
+          IO.puts("#{i} failed")
+
+        {dump, pc} ->
+          IPC.insert(i, {dump, pc})
+
+        x ->
+          IO.inspect(x, label: "wtf")
+      end
+
+      i + 1
+    end)
+
+    single_pass(i_pid, o_pid)
+  end
+
+  def single_pass(i_pid, o_pid) do
+    result =
+      Enum.reduce(0..4, :ok, fn i, _r ->
+        # IO.puts("amp #{i}")
+
+        AmpIO.push(i_pid, AmpIO.pop(o_pid))
+
+        case Feedback.resume(IPC.lookup(i), i_pid, o_pid) do
+          # IO.puts("#{i} finished") ;
+          :ok ->
+            :ok
+
+          :choke ->
+            IO.puts("#{i} failed")
+            :ok
+
+          {dump, pc} ->
+            IPC.insert(i, {dump, pc})
+            :cont
+
+          x ->
+            IO.inspect(x, label: "wtf")
+            :ok
+        end
+      end)
+
+    case result do
+      :ok ->
+        final = AmpIO.pop(o_pid)
+        IO.puts("#{final}")
+        AmpIO.stop(i_pid)
+        AmpIO.stop(o_pid)
+        IPC.delete()
+        final
+
+      :cont ->
+        single_pass(i_pid, o_pid)
+    end
+  end
+end
+```
+
+```elixir
+RunFeedback.run(code, phases)
+```
+
+```elixir
+perms2 = Permutations.of(Enum.to_list(5..9))
+```
+
+```elixir
+outputs2 = Enum.map(perms2, fn phases -> RunFeedback.run(code, phases) end)
+```
+
+```elixir
+Enum.max(outputs2)
+```

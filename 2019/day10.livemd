@@ -1,0 +1,170 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+grid =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.with_index(0)
+  |> Enum.map(fn {str, y} -> {y, String.to_charlist(str)} end)
+  |> Enum.reduce(Map.new(), fn {y, s}, acc ->
+    s
+    |> Enum.with_index()
+    |> Enum.reduce(acc, fn {c, x}, a ->
+      case c do
+        ?# -> Map.put(a, {x, y}, 1)
+        ?. -> Map.put(a, {x, y}, 0)
+      end
+    end)
+  end)
+```
+
+```elixir
+{xmax, ymax} = Enum.reduce(grid, {0, 0}, fn {{x, y}, _}, {xm, ym} -> {max(x, xm), max(y, ym)} end)
+```
+
+## Part 1
+
+```elixir
+obs =
+  Enum.reduce(grid, Map.new(), fn {{x, y}, v}, obs ->
+    case v do
+      0 ->
+        obs
+
+      1 ->
+        obs1 =
+          Enum.reduce(grid, MapSet.new(), fn {{x1, y1}, v1}, obs1 ->
+            if x1 == x and y1 == y do
+              obs1
+            else
+              case v1 do
+                0 ->
+                  obs1
+
+                1 ->
+                  dx = x1 - x
+                  dy = y1 - y
+                  dd = Integer.gcd(dx, dy)
+                  dx = div(dx, dd)
+                  dy = div(dy, dd)
+                  MapSet.put(obs1, {dx, dy})
+              end
+            end
+          end)
+
+        Map.put(obs, {x, y}, obs1)
+    end
+  end)
+```
+
+```elixir
+Enum.max_by(obs, fn {{_x, _jy}, o} -> MapSet.size(o) end)
+```
+
+```elixir
+MapSet.size(obs[{23, 20}])
+```
+
+## Part 2
+
+```elixir
+{x0, y0} = {23, 20}
+```
+
+```elixir
+targets =
+  Enum.reduce(grid, Map.new(), fn {{x, y}, v}, tgts ->
+    if x == x0 and y == y0 do
+      tgts
+    else
+      case v do
+        0 ->
+          tgts
+
+        1 ->
+          dx = x - x0
+          dy = y - y0
+          r = :math.sqrt(dx * dx + dy * dy)
+          dd = Integer.gcd(dx, dy)
+          dx = div(dx, dd)
+          dy = div(dy, dd)
+          angle = :math.atan2(dy, dx) * 180.0 / :math.pi() + 90.0
+          angle = if dx < 0 and dy < 0, do: angle + 360.0, else: angle
+
+          if Map.has_key?(tgts, angle) do
+            rs = tgts[angle]
+            Map.put(tgts, angle, Enum.sort([{r, x, y} | rs]))
+          else
+            Map.put(tgts, angle, [{r, x, y}])
+          end
+      end
+    end
+  end)
+```
+
+```elixir
+sorted_targets = Enum.sort(targets)
+```
+
+```elixir
+defmodule Laser do
+  def one_turn([], remaining, count), do: {remaining, count}
+
+  def one_turn([t | ts], remaining, 199) do
+    case t do
+      {_, [{_r, x, y}]} -> IO.inspect({x, y})
+      {_, [{_r, x, y} | _rs]} -> IO.inspect({x, y})
+    end
+
+    case t do
+      {_, [_r]} -> one_turn(ts, remaining, 200)
+      {a, [_r | rs]} -> one_turn(ts, [{a, rs} | remaining], 200)
+    end
+  end
+
+  def one_turn([t | ts], remaining, count) do
+    case t do
+      {_, [_r]} -> one_turn(ts, remaining, count + 1)
+      {a, [_r | rs]} -> one_turn(ts, [{a, rs} | remaining], count + 1)
+    end
+  end
+end
+```
+
+```elixir
+{remaining, count} = Laser.one_turn(sorted_targets, [], 0)
+count
+```
+
+```elixir
+{remaining, count} = Laser.one_turn(remaining, [], count)
+```
+
+```elixir
+{remaining, count} = Laser.one_turn(remaining, [], count)
+```
+
+```elixir
+{remaining, count} = Laser.one_turn(remaining, [], count)
+```
+
+```elixir
+{remaining, count} = Laser.one_turn(remaining, [], count)
+```
+
+```elixir
+{remaining, count} = Laser.one_turn(remaining, [], count)
+```

@@ -1,0 +1,98 @@
+# Day 3
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+## Part 1
+
+```elixir
+[w1, w2] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, ","))
+  |> Enum.map(fn w ->
+    {_, ms} =
+      Enum.reduce(w, {{0, 0}, MapSet.new()}, fn str, {{x, y}, acc} ->
+        {dir, num} = String.split_at(str, 1)
+
+        {dx, dy} =
+          case dir do
+            "R" -> {1, 0}
+            "U" -> {0, 1}
+            "L" -> {-1, 0}
+            "D" -> {0, -1}
+          end
+
+        n = String.to_integer(num)
+
+        Enum.reduce(1..n, {{x, y}, acc}, fn _i, {{x1, y1}, acc1} ->
+          x2 = x1 + dx
+          y2 = y1 + dy
+          {{x2, y2}, MapSet.put(acc1, {x2, y2})}
+        end)
+      end)
+
+    ms
+  end)
+```
+
+```elixir
+crossings = MapSet.intersection(w1, w2)
+```
+
+```elixir
+Enum.map(crossings, fn {x, y} -> abs(x) + abs(y) end) |> Enum.min()
+```
+
+## Part 2
+
+```elixir
+[{xys1, ts1}, {xys2, ts2}] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, ","))
+  |> Enum.map(fn w ->
+    {_, xys, ts} =
+      Enum.reduce(w, {{0, 0, 0}, MapSet.new(), Map.new()}, fn str, {{x, y, t}, accxy, acct} ->
+        {dir, num} = String.split_at(str, 1)
+
+        {dx, dy} =
+          case dir do
+            "R" -> {1, 0}
+            "U" -> {0, 1}
+            "L" -> {-1, 0}
+            "D" -> {0, -1}
+          end
+
+        n = String.to_integer(num)
+
+        Enum.reduce(1..n, {{x, y, t}, accxy, acct}, fn _i, {{x1, y1, t1}, accxy1, acct1} ->
+          x2 = x1 + dx
+          y2 = y1 + dy
+          t2 = t1 + 1
+          {{x2, y2, t2}, MapSet.put(accxy1, {x2, y2}), Map.put_new(acct1, {x2, y2}, t2)}
+        end)
+      end)
+
+    {xys, ts}
+  end)
+```
+
+```elixir
+xy_crossings = MapSet.intersection(xys1, xys2)
+```
+
+```elixir
+Enum.map(xy_crossings, fn c -> ts1[c] + ts2[c] end) |> Enum.min()
+```

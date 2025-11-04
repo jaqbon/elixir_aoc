@@ -1,0 +1,47 @@
+# 2019 Day 1
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+mass =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Rocket do
+  def fuel_needed(m), do: if((m1 = div(m, 3) - 2) > 0, do: m1, else: 0)
+
+  def initial_module_fuel(m), do: fuel_needed(m)
+
+  def total_module_fuel(m), do: total_module_fuel(initial_module_fuel(m), 0)
+
+  def total_module_fuel(0, total), do: total
+
+  def total_module_fuel(last, so_far), do: total_module_fuel(fuel_needed(last), so_far + last)
+end
+```
+
+## Part 1
+
+```elixir
+Enum.reduce(mass, 0, fn m, s -> s + Rocket.initial_module_fuel(m) end)
+```
+
+## Part 2
+
+```elixir
+Enum.reduce(mass, 0, fn m, s -> s + Rocket.total_module_fuel(m) end)
+```

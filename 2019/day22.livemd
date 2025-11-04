@@ -1,0 +1,165 @@
+# 2019 Day 22
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+commands =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn str ->
+    case Enum.reverse(String.split(str)) do
+      [n, "increment" | _] -> {:inc, String.to_integer(n)}
+      [n, "cut"] -> {:cut, String.to_integer(n)}
+      ["stack" | _] -> {:new, nil}
+    end
+  end)
+```
+
+```elixir
+defmodule Shuffle do
+  def factory(n), do: Enum.map(0..(n - 1), fn i -> i end)
+
+  def new(deck), do: Enum.reverse(deck)
+
+  def cut(deck, n) do
+    if n == 0 do
+      deck
+    else
+      case n > 0 do
+        true ->
+          Enum.drop(deck, n) ++ Enum.take(deck, n)
+
+        _ ->
+          l = length(deck)
+          cut(deck, l + n)
+      end
+    end
+  end
+
+  def inc(deck, n) do
+    l = length(deck)
+
+    {_, d} =
+      Enum.reduce(deck, {0, %{}}, fn c, {k, d} -> {rem(k + n + l, l), Map.put(d, k, c)} end)
+
+    Enum.reduce((l - 1)..0, [], fn i, d1 -> [d[i] | d1] end)
+  end
+
+  def shuffle([], deck), do: deck
+
+  def shuffle([{cmd, n} | cmds], deck) do
+    case cmd do
+      :new -> shuffle(cmds, new(deck))
+      :cut -> shuffle(cmds, cut(deck, n))
+      :inc -> shuffle(cmds, inc(deck, n))
+    end
+  end
+
+  def incinc(deck, a, b), do: inc(inc(deck, b), a)
+end
+```
+
+inc(k) [i] -> [k*i (mod p)]
+
+cut(k) [i] -> [k+i (mod p)]
+
+new    [i] -> [p-i-1 (mod p)]
+
+deal into new stack
+cut -2
+deal with increment 7
+cut 8
+cut -4
+deal with increment 7
+cut 3
+deal with increment 9
+deal with increment 3
+cut -1
+
+9-i
+
+7-i
+
+49-7i -> -1 - 7i
+
+7 - 7i
+
+3 - 7i
+
+27 - 63i -> -3 + 7i
+
+-6 + 7i -> 4 + 7i
+
+36 + 63i -> 6 + 3i
+
+18 + 9i -> 8 + 9i
+
+7 + 9i
+
+```elixir
+
+```
+
+```elixir
+test0 = Shuffle.factory(11)
+```
+
+```elixir
+Enum.each(1..10, fn n -> IO.inspect(Shuffle.inc(test0, n), label: "#{n}") end)
+```
+
+```elixir
+Enum.each(1..10, fn n -> IO.inspect(Shuffle.new(Shuffle.inc(test0, n)), label: "#{n}") end)
+```
+
+```elixir
+Enum.each(-10..10, fn n -> IO.inspect(Shuffle.cut(test0, n), label: "#{n}") end)
+```
+
+```elixir
+i3 = Shuffle.inc(test0, 3)
+i8_3 = Shuffle.inc(i3, 8)
+i6_8_3 = Shuffle.inc(i8_3, 6)
+```
+
+```elixir
+k = rem(3 * 8 * 6, 11)
+```
+
+```elixir
+Shuffle.inc(Shuffle.incinc(test0, 8, 3), -8)
+```
+
+```elixir
+i8 = Shuffle.inc(test0, 8)
+Shuffle.inc(i3, 3)
+```
+
+```elixir
+test1 = Shuffle.shuffle(commands, Shuffle.factory(10))
+```
+
+```elixir
+Shuffle.cut(Shuffle.inc(Shuffle.factory(10), 9), 7)
+```
+
+```elixir
+Shuffle.inc(Shuffle.cut(Shuffle.factory(10), 7), 9)
+```
+
+## Part 1
+
+```elixir
+Enum.find_index(Shuffle.shuffle(commands, Shuffle.factory(10007)), &(&1 == 2019))
+```

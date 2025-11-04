@@ -1,0 +1,662 @@
+# 2019 Day 17
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+code =
+  input
+  |> Kino.Input.read()
+  |> String.replace("\n", "")
+  |> String.split(",", trim: true)
+  |> Enum.with_index(fn e, i -> {i, String.to_integer(e)} end)
+  |> Enum.reduce(Map.new(), fn {i, e}, acc -> Map.put(acc, i, e) end)
+```
+
+```elixir
+defmodule AmpIO do
+  use Agent
+
+  def start(initial_list) do
+    Agent.start(fn -> initial_list end)
+  end
+
+  def stop(pid), do: Agent.stop(pid)
+
+  def push(pid, l) when is_list(l) do
+    l
+    # maintain order of l in agent
+    |> Enum.reverse()
+    |> Enum.each(fn x -> Agent.update(pid, fn state -> [x | state] end) end)
+  end
+
+  def push(pid, x) do
+    Agent.update(pid, fn state -> [x | state] end)
+  end
+
+  def pop(pid) do
+    Agent.get_and_update(pid, fn state ->
+      case state do
+        [] -> {nil, []}
+        [x | s] -> {x, s}
+      end
+    end)
+  end
+
+  def peek(pid) do
+    Agent.get_and_update(pid, fn state ->
+      case state do
+        [] -> {nil, []}
+        [x | _s] -> {x, state}
+      end
+    end)
+  end
+
+  def set(pid, x) do
+    Agent.get_and_update(pid, fn state ->
+      case state do
+        [] -> {x, [x]}
+        [_ | s] -> {x, [x | s]}
+      end
+    end)
+  end
+
+  def state(pid) do
+    Agent.get_and_update(pid, fn state -> {state, state} end)
+  end
+
+  def clear(pid) do
+    Agent.update(pid, fn _state -> [] end)
+  end
+end
+```
+
+```elixir
+defmodule ASCII do
+  def get_opcode(x) do
+    case rem(x, 100) do
+      1 -> :add
+      2 -> :mult
+      3 -> :input
+      4 -> :output
+      5 -> :jmp_true
+      6 -> :jmp_false
+      7 -> :lt
+      8 -> :eq
+      9 -> :set_base
+      99 -> :halt
+    end
+  end
+
+  def get_next_mode(modes) do
+    mode =
+      case rem(modes, 10) do
+        0 -> :position
+        1 -> :immediate
+        2 -> :relative
+      end
+
+    {mode, div(modes, 10)}
+  end
+
+  def get_modes(opcode, modes), do: get_modes(opcode, modes, [])
+
+  def get_modes(opcode, 0, mode_list) do
+    needed_length =
+      case opcode do
+        :add -> 3
+        :mult -> 3
+        :input -> 1
+        :output -> 1
+        :jmp_true -> 2
+        :jmp_false -> 2
+        :lt -> 3
+        :eq -> 3
+        :set_base -> 1
+        :halt -> 0
+      end
+
+    extra = needed_length - length(mode_list)
+
+    if extra > 0 do
+      1..extra
+      |> Enum.reduce(mode_list, fn _n, ml -> [:position | ml] end)
+      |> Enum.reverse()
+    else
+      Enum.reverse(mode_list)
+    end
+  end
+
+  def get_modes(opcode, modes, mode_list) do
+    {mode, modes} = get_next_mode(modes)
+    get_modes(opcode, modes, [mode | mode_list])
+  end
+
+  def get_addr(code, addr, mode, r_pid) do
+    case mode do
+      :position -> code[addr]
+      :relative -> code[addr] + AmpIO.peek(r_pid)
+      _ -> addr
+    end
+  end
+
+  def get_value(code, addr, mode, r_pid) do
+    case code[get_addr(code, addr, mode, r_pid)] do
+      nil -> 0
+      x -> x
+    end
+
+    # case mode do
+    #  :position -> case code[code[addr]] do nil -> 0 ; x -> x end
+    #  :relative -> case code[code[addr] + AmpIO.peek(r_pid)] do nil -> 0 ; x -> x end
+    #  _ -> case code[addr] do nil -> 0 ; x -> x end
+    # end
+  end
+
+  def eval_add(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode1, mode2, mode3] = modes
+
+    op1 = get_value(code, pc + 1, mode1, r_pid)
+    op2 = get_value(code, pc + 2, mode2, r_pid)
+
+    op3 = get_addr(code, pc + 3, mode3, r_pid)
+
+    eval(Map.put(code, op3, op1 + op2), pc + 4, i_pid, o_pid, r_pid, count + 1)
+  end
+
+  def eval_mult(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode1, mode2, mode3] = modes
+
+    op1 = get_value(code, pc + 1, mode1, r_pid)
+    op2 = get_value(code, pc + 2, mode2, r_pid)
+
+    op3 = get_addr(code, pc + 3, mode3, r_pid)
+
+    eval(Map.put(code, op3, op1 * op2), pc + 4, i_pid, o_pid, r_pid, count + 1)
+  end
+
+  def eval_input(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    case AmpIO.pop(i_pid) do
+      nil ->
+        {code, pc, count}
+
+      inp ->
+        [mode] = modes
+
+        location =
+          case mode do
+            :position ->
+              case code[pc + 1] do
+                nil -> 0
+                x -> x
+              end
+
+            :relative ->
+              case code[pc + 1] + AmpIO.peek(r_pid) do
+                nil -> 0
+                x -> x
+              end
+
+            _ ->
+              IO.puts("gak")
+          end
+
+        eval(Map.put(code, location, inp), pc + 2, i_pid, o_pid, r_pid, count + 1)
+    end
+  end
+
+  def eval_output(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode] = modes
+
+    x = get_value(code, pc + 1, mode, r_pid)
+
+    AmpIO.push(o_pid, x)
+
+    eval(code, pc + 2, i_pid, o_pid, r_pid, count + 1)
+  end
+
+  def eval_jmp_true(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode1, mode2] = modes
+
+    op1 = get_value(code, pc + 1, mode1, r_pid)
+    op2 = get_value(code, pc + 2, mode2, r_pid)
+
+    case op1 do
+      0 -> eval(code, pc + 3, i_pid, o_pid, r_pid, count + 1)
+      _ -> eval(code, op2, i_pid, o_pid, r_pid, count + 1)
+    end
+  end
+
+  def eval_jmp_false(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode1, mode2] = modes
+
+    op1 = get_value(code, pc + 1, mode1, r_pid)
+    op2 = get_value(code, pc + 2, mode2, r_pid)
+
+    case op1 do
+      0 -> eval(code, op2, i_pid, o_pid, r_pid, count + 1)
+      _ -> eval(code, pc + 3, i_pid, o_pid, r_pid, count + 1)
+    end
+  end
+
+  def eval_lt(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode1, mode2, mode3] = modes
+
+    op1 = get_value(code, pc + 1, mode1, r_pid)
+    op2 = get_value(code, pc + 2, mode2, r_pid)
+
+    op3 = get_addr(code, pc + 3, mode3, r_pid)
+
+    result = if op1 < op2, do: 1, else: 0
+
+    eval(Map.put(code, op3, result), pc + 4, i_pid, o_pid, r_pid, count + 1)
+  end
+
+  def eval_eq(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode1, mode2, mode3] = modes
+
+    op1 = get_value(code, pc + 1, mode1, r_pid)
+    op2 = get_value(code, pc + 2, mode2, r_pid)
+
+    op3 = get_addr(code, pc + 3, mode3, r_pid)
+
+    result = if op1 == op2, do: 1, else: 0
+
+    eval(Map.put(code, op3, result), pc + 4, i_pid, o_pid, r_pid, count + 1)
+  end
+
+  def eval_set_base(code, modes, pc, i_pid, o_pid, r_pid, count) do
+    [mode] = modes
+
+    x = get_value(code, pc + 1, mode, r_pid) + AmpIO.peek(r_pid)
+
+    AmpIO.set(r_pid, x)
+
+    eval(code, pc + 2, i_pid, o_pid, r_pid, count + 1)
+  end
+
+  # def eval(_,_,_,_,_,100), do: IO.puts("STOP")
+
+  def eval(code, pc, i_pid, o_pid, r_pid, count) do
+    opcode = get_opcode(code[pc])
+
+    modes = get_modes(opcode, div(code[pc], 100))
+
+    case opcode do
+      :add ->
+        eval_add(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :mult ->
+        eval_mult(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :input ->
+        eval_input(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :output ->
+        eval_output(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :jmp_true ->
+        eval_jmp_true(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :jmp_false ->
+        eval_jmp_false(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :lt ->
+        eval_lt(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :eq ->
+        eval_eq(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :set_base ->
+        eval_set_base(code, modes, pc, i_pid, o_pid, r_pid, count)
+
+      :halt ->
+        :ok
+
+      _ ->
+        IO.puts("1202")
+        :choke
+
+        #      :halt ->
+        #        x = AmpIO.state(o_pid)
+        #        AmpIO.stop(i_pid)
+        #        AmpIO.stop(o_pid)
+        #        AmpIO.stop(r_pid)
+        #        x
+        #
+        #      _ ->
+        #        IO.puts("1202")
+    end
+  end
+
+  # def resume({_,_,n}, _,_,_) when n > 10, do: :ok
+
+  def resume({code, pc, count}, i_pid, o_pid, r_pid) do
+    eval(code, pc, i_pid, o_pid, r_pid, count)
+  end
+
+  def run(code) do
+    {:ok, i_pid} = AmpIO.start([])
+    {:ok, o_pid} = AmpIO.start([])
+    {:ok, r_pid} = AmpIO.start([0])
+
+    eval(code, 0, i_pid, o_pid, r_pid, 0)
+
+    output = AmpIO.state(o_pid)
+
+    AmpIO.stop(i_pid)
+    AmpIO.stop(o_pid)
+    AmpIO.stop(r_pid)
+
+    Enum.reverse(output)
+  end
+end
+```
+
+## Part 1
+
+```elixir
+camera_output = ASCII.run(code)
+```
+
+```elixir
+{_, _, image_map} =
+  Enum.reduce(camera_output, {0, 0, %{}}, fn i, {x, y, o} ->
+    case i do
+      10 -> {0, y + 1, o}
+      _ -> {x + 1, y, Map.put(o, {x, y}, i)}
+    end
+  end)
+
+Enum.sort(image_map)
+```
+
+```elixir
+Enum.reduce(image_map, %{}, fn {{x, y}, v}, counts ->
+  if v != 35 do
+    counts
+  else
+    neighbors = [{x + 1, y}, {x - 1, y}, {x, y - 1}, {x, y + 1}]
+    cnt = Enum.count(neighbors, &(image_map[&1] == 35))
+
+    if Map.has_key?(counts, cnt) do
+      Map.put(counts, cnt, 1 + counts[cnt])
+    else
+      Map.put(counts, cnt, 1)
+    end
+  end
+end)
+```
+
+```elixir
+defmodule RunASCII do
+  def step({x, y}, dir) do
+    case dir do
+      1 -> {x, y + 1}
+      2 -> {x, y - 1}
+      3 -> {x - 1, y}
+      4 -> {x + 1, y}
+    end
+  end
+
+  def visit_next([], visited, depth, _), do: {visited, depth}
+
+  def visit_next([{d, xy, state} | rest], visited, depth, pids) do
+    visited = MapSet.put(visited, xy)
+    depth = Map.put(depth, xy, d)
+
+    {i_pid, o_pid, r_pid} = pids
+
+    # get list of possible next steps and resulting positions
+    possible =
+      1..4
+      |> Enum.map(fn dir -> {dir, step(xy, dir)} end)
+      |> Enum.filter(fn {_, xy1} -> !MapSet.member?(visited, xy1) end)
+
+    # get list of allowed new positions
+    next =
+      Enum.reduce(possible, [], fn {dir, xy1}, r ->
+        AmpIO.push(i_pid, dir)
+        new_state = RemoteControl.resume(state, i_pid, o_pid, r_pid)
+
+        case AmpIO.pop(o_pid) do
+          0 ->
+            r
+
+          1 ->
+            [{d + 1, xy1, new_state} | r]
+
+          2 ->
+            IO.inspect(xy1)
+            [{d + 1, xy1, new_state} | r]
+        end
+      end)
+
+    visit_next(rest ++ next, visited, depth, pids)
+  end
+
+  def display(image, intersections \\ []) do
+    {xn, xm, yn, ym} =
+      Enum.reduce(image, {0, 0, 0, 0}, fn {{x, y}, _}, {xn, xm, yn, ym} ->
+        {min(x, xn), max(x, xm), min(y, yn), max(y, ym)}
+      end)
+
+    Enum.each(yn..ym, fn y ->
+      Enum.each(xn..xm, fn x ->
+        c =
+          if Enum.member?(intersections, {x, y}) do
+            'O'
+          else
+            case image[{x, y}] do
+              35 -> '#'
+              46 -> '.'
+              60 -> '<'
+              62 -> '>'
+              94 -> '^'
+              118 -> 'v'
+              nil -> ''
+            end
+          end
+
+        IO.write(c)
+      end)
+
+      IO.puts("")
+    end)
+  end
+
+  def run(code, xy) do
+    {:ok, i_pid} = AmpIO.start([])
+    {:ok, o_pid} = AmpIO.start([])
+    {:ok, r_pid} = AmpIO.start([0])
+
+    pids = {i_pid, o_pid, r_pid}
+
+    {visited, depth} = visit_next([{0, xy, {code, 0, 0}}], MapSet.new(), Map.new(), pids)
+
+    display(visited)
+
+    AmpIO.stop(i_pid)
+    AmpIO.stop(o_pid)
+    AmpIO.stop(r_pid)
+
+    {visited, depth}
+  end
+
+  def find_intersections(image) do
+    {xn, xm, yn, ym} =
+      Enum.reduce(image, {0, 0, 0, 0}, fn {{x, y}, _}, {xn, xm, yn, ym} ->
+        {min(x, xn), max(x, xm), min(y, yn), max(y, ym)}
+      end)
+
+    Enum.reduce((yn + 1)..(ym - 1), [], fn y, i1 ->
+      Enum.reduce((xn + 1)..(xm - 1), i1, fn x, i2 ->
+        if image[{x, y}] == 35 and
+             image[{x - 1, y}] == 35 and image[{x + 1, y}] == 35 and
+             image[{x, y - 1}] == 35 and image[{x, y + 1}] == 35 do
+          [{x, y} | i2]
+        else
+          i2
+        end
+      end)
+    end)
+  end
+end
+```
+
+```elixir
+intersections = RunASCII.find_intersections(image_map) |> Enum.sort()
+```
+
+```elixir
+RunASCII.display(image_map, intersections)
+```
+
+## Part 1
+
+```elixir
+intersections
+|> Enum.map(fn {x, y} -> x * y end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+path =
+  "R,8,L,12,R,8,R,8,L,12,R,8,L,10,L,10,R,8,L,12,L,12,L,10,R,10,L,10,L,10,R,8,L,12,L,12,L,10,R,10,L,10,L,10,R,8,R,8,L,12,R,8,L,12,L,12,L,10,R,10,R,8,L,12,R,8"
+  |> String.split(",")
+  |> Enum.map(fn s ->
+    case s do
+      "R" -> -1
+      "L" -> 1
+      _ -> String.to_integer(s)
+    end
+  end)
+  |> Enum.chunk_every(2)
+```
+
+```elixir
+points =
+  Enum.reduce(path, [{1, {12, 18}}], fn [rot, d], p ->
+    [{dir, {x, y}} | _] = p
+    new_dir = rem(dir + rot + 4, 4)
+
+    {dx, dy} =
+      case new_dir do
+        0 -> {1, 0}
+        1 -> {0, -1}
+        2 -> {-1, 0}
+        3 -> {0, 1}
+      end
+
+    Enum.reduce(1..d, p, fn i, p1 -> [{new_dir, {x + i * dx, y + i * dy}} | p1] end)
+  end)
+  |> Enum.reverse()
+```
+
+```elixir
+unique = Enum.reduce(points, MapSet.new(), fn {_, xy}, u -> MapSet.put(u, xy) end)
+```
+
+```elixir
+Enum.each(0..34, fn y ->
+  Enum.each(0..58, fn x ->
+    c =
+      if Enum.member?(intersections, {x, y}) do
+        'O'
+      else
+        if MapSet.member?(unique, {x, y}) do
+          '#'
+        else
+          '.'
+        end
+      end
+
+    IO.write(c)
+  end)
+
+  IO.puts("")
+end)
+```
+
+R,8,L,12,R,8,R,8,L,12,R,8,L,10,L,10,R,8,L,12,L,12,L,10,R,10,L,10,L,10,R,8,L,12,L,12,L,10,R,10,L,10,L,10,R,8,R,8,L,12,R,8,L,12,L,12,L,10,R,10,R,8,L,12,R,8
+
+A = R,8,L,12,R,8
+
+B = L,10,L,10,R,8
+
+C = L,12,L,12,L,10,R,10
+
+A,A,B,C,B,C,B,A,C,A
+
+```elixir
+defmodule Part2 do
+  def make_data(str) do
+    str
+    |> String.to_charlist()
+    |> Enum.reverse()
+    |> Enum.reduce([10], fn c, d -> [c | d] end)
+  end
+
+  def make_main(), do: make_data("A,A,B,C,B,C,B,A,C,A")
+
+  def make_A(), do: make_data("R,8,L,12,R,8")
+
+  def make_B(), do: make_data("L,10,L,10,R,8")
+
+  def make_C(), do: make_data("L,12,L,12,L,10,R,10")
+
+  def video(), do: make_data("n")
+
+  def run_robot(dump, i_pid, o_pid, r_pid) do
+    IO.inspect(AmpIO.state(i_pid))
+
+    case ASCII.resume(dump, i_pid, o_pid, r_pid) do
+      :ok -> :ok
+      dump -> run_robot(dump, i_pid, o_pid, r_pid)
+    end
+  end
+
+  def run(code) do
+    {:ok, i_pid} = AmpIO.start([])
+    {:ok, o_pid} = AmpIO.start([])
+    {:ok, r_pid} = AmpIO.start([0])
+
+    AmpIO.push(i_pid, video())
+
+    AmpIO.push(i_pid, make_C())
+    AmpIO.push(i_pid, make_B())
+    AmpIO.push(i_pid, make_A())
+
+    AmpIO.push(i_pid, make_main())
+
+    run_robot({Map.put(code, 0, 2), 0, 0}, i_pid, o_pid, r_pid)
+
+    output = AmpIO.state(o_pid)
+
+    AmpIO.stop(i_pid)
+    AmpIO.stop(o_pid)
+    AmpIO.stop(r_pid)
+
+    Enum.reverse(output)
+  end
+end
+```
+
+```elixir
+result = Part2.run(code)
+```
+
+```elixir
+Enum.reverse(result)
+```

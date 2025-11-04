@@ -1,0 +1,77 @@
+# 2019 Day 14
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+reactions =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " => "))
+  |> Enum.map(fn l -> Enum.map(l, fn str -> String.split(str, ", ") end) end)
+  |> Enum.map(&Enum.reverse(&1))
+  |> Enum.reduce(%{}, fn [[output_str], input_strs], r ->
+    [nout, y] = String.split(output_str)
+    [nout, y] = [String.to_integer(nout), y]
+
+    inputs =
+      Enum.map(input_strs, fn str ->
+        [nin, x] = String.split(str)
+        {String.to_integer(nin), x}
+      end)
+
+    Map.put(r, y, {nout, inputs})
+  end)
+```
+
+```elixir
+defmodule React do
+  def init_totals(reactions) do
+    reactions
+    |> Enum.reduce(%{}, fn {x, _}, inps -> Map.put(inps, x, {0, 1}) end)
+    |> Map.put("ORE", {0, 1})
+  end
+
+  def update_totals(_, "ORE", {num, den}, totals) do
+    n = div(num, den) + if rem(num, den) != 0, do: 1, else: 0
+
+    {ore_num, _} = totals["ORE"]
+
+    Map.put(totals, "ORE", {ore_num + n, 1})
+  end
+
+  def update_totals(reactions, x, {x_needed_num, x_needed_den}, totals) do
+    {x_num, x_den} = totals[x]
+
+    totals =
+      Map.put(totals, x, {x_num * x_needed_den + x_needed_num * x_den, x_den * x_needed_den})
+
+    {x_unit, inputs} = reactions[x]
+
+    totals =
+      Enum.reduce(inputs, totals, fn {y_needed, y}, totals ->
+        update_totals(reactions, y, {y_needed * x_needed_num, x_unit * x_needed_den}, totals)
+      end)
+  end
+
+  def find_total_ore(reactions) do
+    totals = init_totals(reactions)
+
+    update_totals(reactions, "FUEL", {1, 1}, totals)
+  end
+end
+```
+
+```elixir
+React.find_total_ore(reactions)
+```

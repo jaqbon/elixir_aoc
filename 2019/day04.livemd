@@ -1,0 +1,52 @@
+# 2019 Day 4
+
+## Part 1
+
+```elixir
+Enum.count(372_037..905_157, fn x ->
+  x0 = rem(x, 10)
+  x = div(x, 10)
+  x1 = rem(x, 10)
+  x = div(x, 10)
+  x2 = rem(x, 10)
+  x = div(x, 10)
+  x3 = rem(x, 10)
+  x = div(x, 10)
+  x4 = rem(x, 10)
+  x = div(x, 10)
+  x5 = rem(x, 10)
+
+  (x0 == x1 or x1 == x2 or x2 == x3 or x3 == x4 or x4 == x5) and
+    (x0 >= x1 and x1 >= x2 and x2 >= x3 and x3 >= x4 and x4 >= x5)
+end)
+```
+
+## Part 2
+
+```elixir
+Enum.count(372_037..905_157, fn x ->
+  x0 = rem(x, 10)
+  x = div(x, 10)
+  x1 = rem(x, 10)
+  x = div(x, 10)
+  x2 = rem(x, 10)
+  x = div(x, 10)
+  x3 = rem(x, 10)
+  x = div(x, 10)
+  x4 = rem(x, 10)
+  x = div(x, 10)
+  x5 = rem(x, 10)
+
+  p01 = x0 == x1 and x1 != x2
+  p12 = x1 == x2 and x0 != x1 and x2 != x3
+  p23 = x2 == x3 and x1 != x2 and x3 != x4
+  p34 = x3 == x4 and x2 != x3 and x4 != x5
+  p45 = x4 == x5 and x3 != x4
+
+  pairs = p01 or p12 or p23 or p34 or p45
+
+  nondecreasing = x0 >= x1 and x1 >= x2 and x2 >= x3 and x3 >= x4 and x4 >= x5
+
+  pairs and nondecreasing
+end)
+```
