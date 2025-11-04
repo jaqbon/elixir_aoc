@@ -1,0 +1,134 @@
+# 2020 Day 14
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+instructions =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn str ->
+    case String.starts_with?(str, "mem") do
+      true -> String.split(str, ["[", "] = "])
+      _ -> String.split(str, " = ")
+    end
+  end)
+  |> Enum.map(fn x ->
+    case x do
+      ["mask", str] -> str
+      ["mem", loc, val] -> {String.to_integer(loc), String.to_integer(val)}
+    end
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  use Bitwise
+
+  def make_mask("", mask), do: mask
+
+  def make_mask(str, {and_mask, or_mask}) do
+    {c, str} = String.split_at(str, 1)
+
+    case c do
+      "0" -> make_mask(str, {and_mask <<< 1, or_mask <<< 1})
+      "1" -> make_mask(str, {(and_mask <<< 1) + 1, (or_mask <<< 1) + 1})
+      "X" -> make_mask(str, {(and_mask <<< 1) + 1, or_mask <<< 1})
+    end
+  end
+
+  def make_mask(str), do: make_mask(str, {0, 0})
+
+  def apply_mask({and_mask, or_mask}, val) do
+    or_mask ||| (and_mask &&& val)
+  end
+
+  def execute([], memory, _), do: memory
+
+  def execute([ins | instructions], memory, mask) do
+    case ins do
+      {loc, val} -> execute(instructions, Map.put(memory, loc, apply_mask(mask, val)), mask)
+      str -> execute(instructions, memory, make_mask(str))
+    end
+  end
+
+  def execute(instructions), do: execute(instructions, %{}, {0, 0})
+end
+```
+
+```elixir
+Part1.execute(instructions) |> Enum.reduce(0, fn {_, v}, s -> s + v end)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  use Bitwise
+
+  def make_masks("", masks), do: masks
+
+  def make_masks(str, masks) do
+    {c, str} = String.split_at(str, 1)
+
+    masks =
+      case c do
+        "0" ->
+          Enum.map(masks, fn {and_mask, or_mask} -> {(and_mask <<< 1) + 1, or_mask <<< 1} end)
+
+        "1" ->
+          Enum.map(masks, fn {and_mask, or_mask} ->
+            {(and_mask <<< 1) + 1, (or_mask <<< 1) + 1}
+          end)
+
+        "X" ->
+          Enum.flat_map(masks, fn {and_mask, or_mask} ->
+            [{and_mask <<< 1, or_mask <<< 1}, {(and_mask <<< 1) + 1, (or_mask <<< 1) + 1}]
+          end)
+      end
+
+    make_masks(str, masks)
+  end
+
+  def make_masks(str), do: make_masks(str, [{0, 0}])
+
+  def apply_mask({and_mask, or_mask}, x) do
+    or_mask ||| (and_mask &&& x)
+  end
+
+  def execute([], memory, _), do: memory
+
+  def execute([ins | instructions], memory, masks) do
+    case ins do
+      {loc, val} ->
+        memory =
+          Enum.reduce(masks, memory, fn mask, memory ->
+            Map.put(memory, apply_mask(mask, loc), val)
+          end)
+
+        execute(instructions, memory, masks)
+
+      str ->
+        execute(instructions, memory, make_masks(str))
+    end
+  end
+
+  def execute(instructions), do: execute(instructions, %{}, [])
+end
+```
+
+```elixir
+Part2.execute(instructions) |> Enum.reduce(0, fn {_, v}, s -> s + v end)
+```

@@ -1,0 +1,106 @@
+# 2020 Day 13
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[str1, str2] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+earliest = String.to_integer(str1)
+
+periods =
+  str2
+  |> String.split(",")
+  |> Enum.with_index()
+  |> Enum.filter(&(&1 != "x"))
+  |> Enum.filter(fn {s, _} -> s != "x" end)
+  |> Enum.map(fn {s, i} -> {String.to_integer(s), -i} end)
+```
+
+```elixir
+earliest
+```
+
+## Part 1
+
+```elixir
+Enum.map(periods, fn {p, _} -> {p - rem(earliest, p), p} end) |> Enum.sort()
+```
+
+```elixir
+9 * 23
+```
+
+## Part 2
+
+```elixir
+# periods =
+#  "7,13,x,x,59,x,31,19"
+#  |> String.split(",")
+#  |> Enum.with_index()
+#  |> Enum.filter(fn {s, _} -> s != "x" end)
+#  |> Enum.map(fn {s, i} -> {String.to_integer(s), -i} end)
+```
+
+```elixir
+defmodule Prime do
+  def inverse(t, newt, r, newr) do
+    q = div(r, newr)
+
+    {t, newt} = {newt, t - q * newt}
+    {r, newr} = {newr, r - q * newr}
+
+    if newr != 0 do
+      inverse(t, newt, r, newr)
+    else
+      if r > 1, do: :blah, else: t
+    end
+  end
+
+  # extended euclidean algorithm
+  def inverse(x, p) do
+    case inverse(0, 1, p, x) do
+      :blah -> IO.puts("error")
+      t -> if t < 0, do: t + p, else: t
+    end
+  end
+
+  def make_pos(t, p) do
+    if t >= 0, do: t, else: make_pos(t + p, p)
+  end
+
+  # chinese remainder theorem
+  def solve({n1, a1}, {n2, a2}) do
+    q = inverse(n2, n1)
+    b = rem(q * (a1 - a2), n1)
+    t = b * n2 + a2
+    n = n1 * n2
+    t = make_pos(t, n)
+    {n, t}
+  end
+
+  def part2(periods) do
+    [pd1, pd2 | pds] = periods
+
+    pd_last = solve(pd1, pd2)
+
+    Enum.reduce(pds, pd_last, fn pd, pd_last -> solve(pd_last, pd) end)
+  end
+end
+```
+
+```elixir
+Prime.part2(periods)
+```

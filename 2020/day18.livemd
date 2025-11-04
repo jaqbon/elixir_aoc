@@ -1,0 +1,119 @@
+# 2020 Day 18
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+homework =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1))
+```
+
+```elixir
+defmodule Parse do
+  def parse_line([], new), do: Enum.reverse(new)
+
+  def parse_line(["" | strs], new), do: parse_line(strs, new)
+
+  def parse_line([str | strs], new) do
+    if String.starts_with?(str, "(") do
+      {"(", str} = String.split_at(str, 1)
+      parse_line([str | strs], [:lparen | new])
+    else
+      if String.ends_with?(str, ")") do
+        {str, ")"} = String.split_at(str, -1)
+
+        if String.length(str) > 0 do
+          parse_line([str, ")" | strs], new)
+        else
+          parse_line(strs, [:rparen | new])
+        end
+      else
+        new =
+          case str do
+            "+" -> [:add | new]
+            "*" -> [:mul | new]
+            _ -> [String.to_integer(str) | new]
+          end
+
+        parse_line(strs, new)
+      end
+    end
+  end
+
+  def parse_line(strs), do: parse_line(strs, [])
+end
+```
+
+```elixir
+defmodule Eval1 do
+  def eval([], [result]), do: result
+
+  #  def eval([], [x1, op, x2 | stack]) do
+  #    case op do
+  #      :add -> eval([], [x1 + x2 | stack])
+  #      :mul -> eval([], [x1 * x2 | stack])
+  #      _ -> IO.inspect(stack, label: "stack")
+  #    end
+  #  end
+
+  def eval(line, [x1, :add, x2 | stack]) when is_integer(x1) and is_integer(x2) do
+    eval(line, [x1 + x2 | stack])
+  end
+
+  def eval(line, [x1, :mul, x2 | stack]) when is_integer(x1) and is_integer(x2) do
+    eval(line, [x1 * x2 | stack])
+  end
+
+  def eval([op1 | line], stack) do
+    # IO.inspect([op1, stack])
+
+    case op1 do
+      :add ->
+        eval(line, [:add | stack])
+
+      :mul ->
+        eval(line, [:mul | stack])
+
+      :lparen ->
+        eval(line, [:lparen | stack])
+
+      :rparen ->
+        case stack do
+          [x, :lparen | stack] -> eval(line, [x | stack])
+          [x1, :add, x2, :lparen | stack] -> eval(line, [x1 + x2 | stack])
+          [x1, :mul, x2, :lparen | stack] -> eval(line, [x1 * x2 | stack])
+        end
+
+      _ ->
+        case stack do
+          [:add, op2 | stack] -> eval(line, [op1 + op2 | stack])
+          [:mul, op2 | stack] -> eval(line, [op1 * op2 | stack])
+          _ -> eval(line, [op1 | stack])
+        end
+    end
+  end
+
+  def eval(line), do: eval(line, [])
+end
+```
+
+```elixir
+homework
+|> Enum.map(&Parse.parse_line(&1))
+|> Enum.map(&Eval1.eval(&1))
+|> Enum.sum()
+```
+
+## Part 2

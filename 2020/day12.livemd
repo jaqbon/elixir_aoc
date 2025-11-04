@@ -1,0 +1,118 @@
+# 2020 Day 12
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+commmands =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split_at(&1, 1))
+  |> Enum.map(fn {c, n} -> {c, String.to_integer(n)} end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def rotate(dir, 0), do: dir
+
+  def rotate({dx, dy}, angle) do
+    n = div(angle, 90)
+
+    if n > 0 do
+      Enum.reduce(1..n, {dx, dy}, fn _, {dx, dy} -> {-dy, dx} end)
+    else
+      Enum.reduce(n..-1, {dx, dy}, fn _, {dx, dy} -> {dy, -dx} end)
+    end
+  end
+
+  def execute([], pos, _), do: pos
+
+  def execute([{c, v} | cmds], {x, y}, {dx, dy}) do
+    case c do
+      "F" -> execute(cmds, {x + v * dx, y + v * dy}, {dx, dy})
+      "E" -> execute(cmds, {x + v, y}, {dx, dy})
+      "W" -> execute(cmds, {x - v, y}, {dx, dy})
+      "N" -> execute(cmds, {x, y + v}, {dx, dy})
+      "S" -> execute(cmds, {x, y - v}, {dx, dy})
+      "R" -> execute(cmds, {x, y}, rotate({dx, dy}, -v))
+      "L" -> execute(cmds, {x, y}, rotate({dx, dy}, v))
+    end
+  end
+
+  def execute(commands), do: execute(commands, {0, 0}, {1, 0})
+
+  def manhattan({x, y}), do: abs(x) + abs(y)
+end
+```
+
+```elixir
+Part1.execute(commmands) |> Part1.manhattan()
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def rotate(dir, 0), do: dir
+
+  def rotate({dx, dy}, angle) do
+    n = div(angle, 90)
+
+    if n > 0 do
+      Enum.reduce(1..n, {dx, dy}, fn _, {dx, dy} -> {-dy, dx} end)
+    else
+      Enum.reduce(n..-1, {dx, dy}, fn _, {dx, dy} -> {dy, -dx} end)
+    end
+  end
+
+  def execute([], pos, _, _), do: pos
+
+  def execute([{c, v} | cmds], {x, y}, {dx, dy}, {wx, wy}) do
+    case c do
+      "F" ->
+        {lx, ly} = {v * (wx - x), v * (wy - y)}
+        execute(cmds, {x + lx, y + ly}, {dx, dy}, {wx + lx, wy + ly})
+
+      "E" ->
+        execute(cmds, {x, y}, {dx, dy}, {wx + v, wy})
+
+      "W" ->
+        execute(cmds, {x, y}, {dx, dy}, {wx - v, wy})
+
+      "N" ->
+        execute(cmds, {x, y}, {dx, dy}, {wx, wy + v})
+
+      "S" ->
+        execute(cmds, {x, y}, {dx, dy}, {wx, wy - v})
+
+      "R" ->
+        {wx, wy} = rotate({wx - x, wy - y}, -v)
+        execute(cmds, {x, y}, {dx, dy}, {wx + x, wy + y})
+
+      "L" ->
+        {wx, wy} = rotate({wx - x, wy - y}, v)
+        execute(cmds, {x, y}, {dx, dy}, {wx + x, wy + y})
+    end
+  end
+
+  def execute(commands), do: execute(commands, {0, 0}, {1, 0}, {10, 1})
+
+  def manhattan({x, y}), do: abs(x) + abs(y)
+end
+```
+
+```elixir
+Part2.execute(commmands) |> Part2.manhattan()
+```

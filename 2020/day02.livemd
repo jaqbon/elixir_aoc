@@ -1,0 +1,59 @@
+# Day 2
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+## Part 1
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, [" ", "-", ":"]))
+  |> Enum.map(fn [mn, mx, c, _, s] ->
+    {String.to_integer(mn), String.to_integer(mx), String.to_charlist(c), String.to_charlist(s)}
+  end)
+```
+
+```elixir
+Enum.map(lines, fn {mn, mx, c, s} ->
+  [c] = c
+  n = Enum.count(s, fn cs -> c == cs end)
+  mn <= n and n <= mx
+end)
+|> Enum.count(& &1)
+```
+
+## Part 2
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, [" ", "-", ":"]))
+  |> Enum.map(fn [mn, mx, c, _, s] ->
+    {String.to_integer(mn), String.to_integer(mx), c, s}
+  end)
+```
+
+```elixir
+xor = fn a, b -> (a or b) and not (a and b) end
+```
+
+```elixir
+Enum.map(lines, fn {mn, mx, c, s} ->
+  xor.(c == String.at(s, mn - 1), c == String.at(s, mx - 1))
+end)
+|> Enum.count(& &1)
+```

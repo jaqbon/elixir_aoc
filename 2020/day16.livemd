@@ -1,0 +1,176 @@
+# 2020 Day 16
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[rules, my_ticket, nearby_tickets] =
+  input
+  |> Kino.Input.read()
+  |> String.split(["your ticket:", "nearby tickets:"])
+  |> Enum.map(&String.split(&1, "\n", trim: true))
+
+rules =
+  rules
+  |> Enum.map(&String.split(&1, [": ", " or ", "-"]))
+  |> Enum.map(fn [name, mn1, mx1, mn2, mx2] ->
+    [
+      name,
+      {String.to_integer(mn1), String.to_integer(mx1)},
+      {String.to_integer(mn2), String.to_integer(mx2)}
+    ]
+  end)
+
+my_ticket =
+  my_ticket
+  |> Enum.map(&String.split(&1, ","))
+  |> Enum.map(fn ticket -> Enum.map(ticket, fn str -> String.to_integer(str) end) end)
+
+nearby_tickets =
+  nearby_tickets
+  |> Enum.map(&String.split(&1, ","))
+  |> Enum.map(fn ticket -> Enum.map(ticket, fn str -> String.to_integer(str) end) end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def is_valid?(rules, x) do
+    Enum.reduce_while(rules, false, fn [_, {mn1, mx1}, {mn2, mx2}], _ ->
+      case (mn1 <= x && x <= mx1) || (mn2 <= x && x <= mx2) do
+        true -> {:halt, true}
+        _ -> {:cont, false}
+      end
+    end)
+  end
+
+  def find_invalids([], _, invalids), do: invalids
+
+  def find_invalids([ticket | tickets], rules, invalids) do
+    invalids =
+      Enum.reduce(ticket, invalids, fn x, invs ->
+        case is_valid?(rules, x) do
+          true -> invs
+          _ -> [x | invs]
+        end
+      end)
+
+    find_invalids(tickets, rules, invalids)
+  end
+
+  def find_invalids(tickets, rules), do: find_invalids(tickets, rules, [])
+end
+```
+
+```elixir
+Part1.find_invalids(nearby_tickets, rules) |> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def is_valid_ticket?(rules, ticket) do
+    Enum.reduce_while(ticket, true, fn x, _ ->
+      case Part1.is_valid?(rules, x) do
+        true -> {:cont, true}
+        _ -> {:halt, false}
+      end
+    end)
+  end
+
+  def remove_invalid_tickets(tickets, rules) do
+    Enum.filter(tickets, fn ticket -> is_valid_ticket?(rules, ticket) end)
+  end
+
+  def make_fields(tickets) do
+    Enum.reduce(tickets, %{}, fn ticket, fields ->
+      Enum.reduce(Enum.with_index(ticket), fields, fn {x, i}, f ->
+        if Map.has_key?(f, i), do: Map.put(f, i, [x | f[i]]), else: Map.put(f, i, [x])
+      end)
+    end)
+  end
+end
+```
+
+```elixir
+valid_tickets = Part2.remove_invalid_tickets(nearby_tickets, rules)
+```
+
+```elixir
+fields = Part2.make_fields(valid_tickets)
+```
+
+```elixir
+rules
+```
+
+```elixir
+possible_fields =
+  Enum.reduce(rules, %{}, fn [name, {xn1, xm1}, {xn2, xm2}], satisfy ->
+    s =
+      Enum.reduce(0..(map_size(fields) - 1), [], fn i, f ->
+        s =
+          Enum.reduce_while(fields[i], true, fn x, _ ->
+            case (xn1 <= x && x <= xm1) || (xn2 <= x && x <= xm2) do
+              true -> {:cont, true}
+              _ -> {:halt, false}
+            end
+          end)
+
+        if s, do: [i | f], else: f
+      end)
+
+    Map.put(satisfy, name, s)
+  end)
+```
+
+```elixir
+sorted_possible = Enum.sort_by(possible_fields, fn {_, fields} -> length(fields) end)
+```
+
+```elixir
+Enum.map(sorted_possible, fn {_, f} -> length(f) end)
+```
+
+```elixir
+{ticket_fields, _} =
+  Enum.reduce(sorted_possible, {%{}, MapSet.new()}, fn {name, fields}, {ticket_fields, used} ->
+    i =
+      Enum.reduce_while(fields, used, fn j, u ->
+        case MapSet.member?(u, j) do
+          true -> {:cont, u}
+          _ -> {:halt, j}
+        end
+      end)
+
+    {Map.put(ticket_fields, name, i), MapSet.put(used, i)}
+  end)
+```
+
+```elixir
+[my_ticket] = my_ticket
+
+my_ticket = Enum.with_index(my_ticket)
+
+my_ticket = Enum.reduce(my_ticket, %{}, fn {x, i}, t -> Map.put(t, i, x) end)
+```
+
+```elixir
+Enum.reduce(ticket_fields, 1, fn {name, field}, product ->
+  case String.contains?(name, "departure") do
+    true -> product * my_ticket[field]
+    _ -> product
+  end
+end)
+```

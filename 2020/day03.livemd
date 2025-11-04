@@ -1,0 +1,53 @@
+# Day 3
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+grid =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.with_index(0)
+  |> Enum.reduce(Map.new(), fn {s, n}, acc -> Map.put(acc, n, s) end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def trees(grid, dx, dy), do: trees(grid, dx, dy, 0, 0, 0)
+
+  def trees(grid, _, _, _, y, n) when y >= map_size(grid), do: n
+
+  def trees(grid, dx, dy, x, y, n) do
+    row = grid[y]
+    cols = String.length(row)
+
+    case String.at(grid[y], x) do
+      "." -> trees(grid, dx, dy, rem(x + dx, cols), y + dy, n)
+      "#" -> trees(grid, dx, dy, rem(x + dx, cols), y + dy, n + 1)
+    end
+  end
+end
+```
+
+```elixir
+Part1.trees(grid, 3, 1)
+```
+
+## Part 2
+
+```elixir
+[{1, 1}, {3, 1}, {5, 1}, {7, 1}, {1, 2}]
+|> Enum.reduce(1, fn {dx, dy}, n -> n * Part1.trees(grid, dx, dy) end)
+```

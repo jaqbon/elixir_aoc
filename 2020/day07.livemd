@@ -1,0 +1,108 @@
+# Day 7
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+rules =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.replace(&1, ".", ""))
+  |> Enum.map(&String.replace(&1, "bags", "bag"))
+  |> Enum.map(&String.split(&1, " contain "))
+```
+
+```elixir
+can_hold =
+  Enum.reduce(rules, Map.new(), fn [k, r], acc ->
+    case r do
+      "no other bag" ->
+        Map.put(acc, k, [{0, ""}])
+
+      _ ->
+        rs = String.split(r, ", ")
+
+        bs =
+          Enum.map(rs, fn s ->
+            {String.to_integer(String.at(s, 0)), String.slice(s, 2..String.length(s))}
+          end)
+
+        Map.put(acc, k, bs)
+    end
+  end)
+```
+
+```elixir
+held_by =
+  Enum.reduce(can_hold, Map.new(), fn {k, l}, h ->
+    Enum.reduce(l, h, fn {n, s}, h1 ->
+      case n do
+        0 -> h1
+        _ -> if Map.has_key?(h1, s), do: Map.put(h1, s, [k | h1[s]]), else: Map.put(h1, s, [k])
+      end
+    end)
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def get_next(held_by, input) do
+    input
+    |> Enum.reduce([], fn x, acc ->
+      case held_by[x] do
+        nil -> acc
+        lst -> lst ++ acc
+      end
+    end)
+    |> Enum.uniq()
+  end
+
+  def all_that_can_hold(held_by, bag), do: all_that_can_hold(held_by, [bag], [])
+
+  def all_that_can_hold(_held_by, [], lst), do: lst
+
+  def all_that_can_hold(held_by, input, lst) do
+    next = get_next(held_by, input)
+    all_that_can_hold(held_by, next, Enum.uniq(next ++ lst))
+  end
+end
+```
+
+```elixir
+all = Part1.all_that_can_hold(held_by, "shiny gold bag")
+```
+
+```elixir
+length(all)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def number_for_this_bag(can_hold, {mult, bag}) do
+    num =
+      Enum.reduce(can_hold[bag], 0, fn {m, b}, n ->
+        if b == "", do: n, else: n + number_for_this_bag(can_hold, {m, b})
+      end)
+
+    mult * (num + 1)
+  end
+end
+```
+
+```elixir
+Part2.number_for_this_bag(can_hold, {1, "shiny gold bag"}) - 1
+```

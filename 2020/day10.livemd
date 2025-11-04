@@ -1,0 +1,119 @@
+# Day 10
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+adapters =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+  |> Enum.sort()
+```
+
+## Part 1
+
+```elixir
+{j, {s1, s3}} =
+  Enum.reduce(adapters, {0, {0, 0}}, fn x, {j, {s1, s3}} ->
+    d = x - j
+
+    case d do
+      1 -> {x, {s1 + 1, s3}}
+      3 -> {x, {s1, s3 + 1}}
+      _ -> {x, {s1, s3}}
+    end
+  end)
+
+{j, {s1, s3}} = {j + 3, {s1, s3 + 1}}
+```
+
+```elixir
+s1 * s3
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def next_step(last_step) do
+    Enum.reduce(last_step, [], fn {so_far, remaining}, sl ->
+      case remaining do
+        [] ->
+          sl
+
+        _ ->
+          {_, sl1} =
+            Enum.reduce(1..3, {{so_far, remaining}, []}, fn d, {{sf, rm}, sl2} ->
+              case rm do
+                [] ->
+                  {{sf, rm}, sl2}
+
+                _ ->
+                  [x1 | _] = sf
+                  [x2 | r] = rm
+                  if d == x2 - x1, do: {{sf, r}, [{[x2 | sf], r} | sl2]}, else: {{sf, rm}, sl2}
+              end
+            end)
+
+          # IO.inspect(sl1, label: "sl1")
+          # IO.inspect(sl, label: "sl")
+          sl1 ++ sl
+      end
+    end)
+  end
+
+  def find_all(adapters), do: find_all([{[0], adapters}], [])
+
+  def find_all([], found), do: found
+
+  def find_all(seq_list, found) do
+    # IO.inspect(seq_list)
+    # IO.inspect(found)
+    new_list = next_step(seq_list)
+
+    {next_seq, next_found} =
+      Enum.reduce(new_list, {[], found}, fn {so_far, remaining}, {nxt, fnd} ->
+        case remaining do
+          # IO.inspect(so_far, label: "found")
+          [] ->
+            {nxt, [so_far | fnd]}
+
+          _ ->
+            {[{so_far, remaining} | nxt], fnd}
+        end
+      end)
+
+    find_all(next_seq, next_found)
+  end
+
+  def bump(found, adapters) do
+    mxa = Enum.max(adapters)
+
+    found
+    |> Enum.map(fn [mx | rest] -> if mx == mxa, do: [mxa + 3, mx | rest], else: [mx | rest] end)
+    |> Enum.map(&Enum.reverse(&1))
+  end
+end
+```
+
+```elixir
+adapters
+|> Part2.find_all()
+|> Part2.bump(adapters)
+|> length()
+```
+
+```elixir
+Part2.bump(found, adapters)
+```

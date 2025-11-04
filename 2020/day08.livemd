@@ -1,0 +1,114 @@
+# Day 8
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+code =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, " "))
+  |> Enum.with_index()
+  |> Enum.reduce(Map.new(), fn {[ins, val], idx}, acc ->
+    Map.put(acc, idx, {ins, String.to_integer(val)})
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def run(code), do: run(code, 0, MapSet.new(), 0)
+
+  def run(code, pc, prev, acc) do
+    if pc in prev do
+      acc
+    else
+      {ins, op} = code[pc]
+
+      case ins do
+        "acc" -> run(code, pc + 1, MapSet.put(prev, pc), acc + op)
+        "jmp" -> run(code, pc + op, MapSet.put(prev, pc), acc)
+        "nop" -> run(code, pc + 1, MapSet.put(prev, pc), acc)
+      end
+    end
+  end
+end
+```
+
+```elixir
+Part1.run(code)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def run(code), do: run(code, 0, MapSet.new(), 0)
+
+  def run(code, pc, prev, acc) do
+    if pc < 0 or pc >= map_size(code) or pc in prev do
+      nil
+    else
+      {ins, op} = code[pc]
+
+      case ins do
+        "acc" -> run(code, pc + 1, MapSet.put(prev, pc), acc + op)
+        "jmp" -> run(code, pc + op, MapSet.put(prev, pc), acc)
+        "nop" -> run(code, pc + 1, MapSet.put(prev, pc), acc)
+        "end" -> acc
+      end
+    end
+  end
+
+  def run_nop(code) do
+    code = Map.put(code, map_size(code), {"end", 0})
+
+    nops =
+      code
+      |> Enum.filter(fn {_idx, {ins, _op}} -> ins == "nop" end)
+      |> Enum.sort()
+
+    Enum.reduce_while(nops, 0, fn {idx, {_, op}}, _acc ->
+      case Part2.run(Map.put(code, idx, {"jmp", op})) do
+        nil -> {:cont, nil}
+        val -> {:halt, val}
+      end
+    end)
+  end
+
+  def run_jmp(code) do
+    code = Map.put(code, map_size(code), {"end", 0})
+
+    jmps =
+      code
+      |> Enum.filter(fn {_idx, {ins, _op}} -> ins == "jmp" end)
+      |> Enum.sort()
+
+    Enum.reduce_while(jmps, 0, fn {idx, {_, op}}, _acc ->
+      case Part2.run(Map.put(code, idx, {"nop", op})) do
+        nil -> {:cont, nil}
+        val -> {:halt, val}
+      end
+    end)
+  end
+end
+```
+
+```elixir
+Part2.run_jmp(code)
+```
+
+```elixir
+Part2.run_nop(code)
+```

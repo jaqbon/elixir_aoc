@@ -1,0 +1,82 @@
+# Day 1
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+## Part 1
+
+```elixir
+Enum.reduce_while(lines, MapSet.new(), fn x, acc ->
+  y = 2020 - x
+
+  if MapSet.member?(acc, x) do
+    {:halt, x * y}
+  else
+    {:cont, MapSet.put(acc, y)}
+  end
+end)
+```
+
+```elixir
+defmodule TwoSum do
+  def solve(numbers, n), do: solve(numbers, n, MapSet.new())
+
+  def solve([], _, _), do: nil
+
+  def solve(numbers, n, acc) do
+    [x | numbers] = numbers
+    y = n - x
+
+    if MapSet.member?(acc, x) do
+      x * y
+    else
+      solve(numbers, n, MapSet.put(acc, y))
+    end
+  end
+end
+```
+
+```elixir
+TwoSum.solve(lines, 2020)
+```
+
+## Part 2
+
+```elixir
+defmodule ThreeSum do
+  def solve(numbers, n), do: solve1(numbers, n)
+
+  def solve1([], _), do: nil
+
+  def solve1(numbers, n) do
+    [x | numbers] = numbers
+    y = n - x
+
+    case TwoSum.solve(numbers, y) do
+      nil -> solve1(numbers, n)
+      z -> x * z
+    end
+  end
+end
+```
+
+```elixir
+ThreeSum.solve(lines, 2020)
+```

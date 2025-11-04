@@ -1,0 +1,97 @@
+# 2020 Day 21
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+foods_and_allergens =
+  input
+  |> Kino.Input.read()
+  |> String.replace(",", "")
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, [" ", "(", ")"]))
+  |> Enum.map(fn list -> Enum.filter(list, fn str -> str != "" end) end)
+  |> Enum.map(fn list -> Enum.chunk_by(list, fn str -> str == "contains" end) end)
+  |> Enum.map(fn list -> Enum.filter(list, fn x -> x != ["contains"] end) end)
+```
+
+```elixir
+possible =
+  Enum.reduce(foods_and_allergens, %{}, fn [foods, allergens], af ->
+    Enum.reduce(allergens, af, fn a, af ->
+      case af[a] do
+        nil ->
+          Map.put(af, a, foods)
+
+        _ ->
+          foods =
+            Enum.reduce(foods, [], fn food, fs ->
+              case Enum.member?(af[a], food) do
+                true -> [food | fs]
+                _ -> fs
+              end
+            end)
+
+          Map.put(af, a, foods)
+      end
+    end)
+  end)
+```
+
+```elixir
+possible = Enum.sort_by(possible, fn {_, fs} -> length(fs) end)
+```
+
+```elixir
+bad_foods =
+  Enum.reduce(possible, MapSet.new(), fn {_, foods}, allergens ->
+    Enum.reduce(foods, allergens, fn f, a -> MapSet.put(a, f) end)
+  end)
+```
+
+## Part 1
+
+```elixir
+good_food_appearances =
+  Enum.reduce(foods_and_allergens, [], fn [foods, _], gfs ->
+    Enum.reduce(foods, gfs, fn food, gfs ->
+      case MapSet.member?(bad_foods, food) do
+        true -> gfs
+        _ -> [food | gfs]
+      end
+    end)
+  end)
+```
+
+```elixir
+length(good_food_appearances)
+```
+
+## Part 2
+
+```elixir
+possible
+```
+
+```elixir
+Enum.reduce(possible, {[], MapSet.new()}, fn {allergen, foods}, {pairs, found} ->
+  food =
+    Enum.reduce_while(foods, nil, fn food, _ ->
+      case MapSet.member?(found, food) do
+        false -> {:halt, food}
+        _ -> {:cont, nil}
+      end
+    end)
+
+  {[{allergen, food} | pairs], MapSet.put(found, food)}
+end)
+```

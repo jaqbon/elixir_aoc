@@ -1,0 +1,52 @@
+# Day 6
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+answers =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n\n")
+  |> Enum.map(&String.split(&1, "\n", trim: true))
+```
+
+## Part 1
+
+```elixir
+Enum.map(answers, fn l ->
+  Enum.reduce(l, MapSet.new(), fn s, acc ->
+    Enum.reduce(String.to_charlist(s), acc, fn c, a -> MapSet.put(a, c) end)
+  end)
+end)
+|> Enum.reduce(0, fn m, n -> n + MapSet.size(m) end)
+```
+
+## Part 2
+
+```elixir
+Enum.map(answers, fn l ->
+  m =
+    Enum.reduce(l, Map.new(), fn s, acc ->
+      Enum.reduce(String.to_charlist(s), acc, fn c, a ->
+        if Map.has_key?(a, c), do: Map.put(a, c, 1 + a[c]), else: Map.put(a, c, 1)
+      end)
+    end)
+
+  {length(l), m}
+end)
+|> Enum.reduce(0, fn {num, m}, cnt ->
+  Enum.reduce(m, cnt, fn {_k, v}, cnt1 ->
+    if v == num, do: cnt1 + 1, else: cnt1
+  end)
+end)
+```

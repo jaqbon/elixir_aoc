@@ -1,0 +1,76 @@
+# Day 15
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+## Part 1
+
+```elixir
+start = [0, 3, 6]
+```
+
+```elixir
+defmodule Part1 do
+  def game(start, n), do: say_start(start, n, Map.new())
+
+  def say_start(start, n, when_spoken) do
+    {k, last, when_spoken} =
+      Enum.reduce(start, {0, nil, when_spoken}, fn x, {i, _, w} ->
+        {i + 1, x, Map.put(w, x, {i, nil})}
+      end)
+
+    say(k, n, last, when_spoken)
+  end
+
+  def say(n, n, last, _), do: last
+
+  def say(k, n, last, when_spoken) do
+    # IO.puts("#{k}, #{last}")
+    # IO.inspect(when_spoken)
+
+    case when_spoken[last] do
+      {_, nil} ->
+        {j, _} = when_spoken[0]
+        # IO.puts("say 0")
+        say(k + 1, n, 0, Map.put(when_spoken, 0, {k, j}))
+
+      {i, j} ->
+        {l, _} =
+          case when_spoken[i - j] do
+            nil -> {nil, nil}
+            {m, _} -> {m, nil}
+          end
+
+        # IO.puts("say #{i-j}")
+        say(k + 1, n, i - j, Map.put(when_spoken, i - j, {k, l}))
+    end
+  end
+end
+```
+
+```elixir
+Part1.game([1, 0, 15, 2, 10, 13], 2020)
+```
+
+## Part 2
+
+```elixir
+Part1.game([1, 0, 15, 2, 10, 13], 30_000_000)
+```

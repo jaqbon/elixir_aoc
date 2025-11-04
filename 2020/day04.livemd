@@ -1,0 +1,122 @@
+# Day 4
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+passports =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n\n")
+
+# |> Enum.map(&String.split(&1, [" ", "\n"]))
+```
+
+## Part 1
+
+```elixir
+required = ["byr:", "iyr:", "eyr:", "hgt:", "hcl:", "ecl:", "pid:"]
+```
+
+```elixir
+Enum.count(passports, fn p ->
+  Enum.count(required, fn r -> String.contains?(p, r) end) == length(required)
+end)
+```
+
+## Part 2
+
+```elixir
+fields =
+  Enum.map(passports, fn p ->
+    IO.inspect(p)
+
+    p
+    |> String.split([" ", "\n"], trim: true)
+    |> Enum.reduce(Map.new(), fn s, acc ->
+      [k, v] = String.split(s, ":")
+      Map.put(acc, k, v)
+    end)
+  end)
+```
+
+```elixir
+defmodule Part2 do
+  def good_number?(str, sz, mn, mx) do
+    if String.length(str) == sz do
+      v = String.to_integer(str)
+      mn <= v and v <= mx
+    else
+      false
+    end
+  end
+
+  def good_hgt?(<<h::bytes-size(3)>> <> "cm") do
+    h = String.to_integer(h)
+    150 <= h and h <= 193
+  end
+
+  def good_hgt?(<<h::bytes-size(2)>> <> "in") do
+    h = String.to_integer(h)
+    59 <= h and h <= 76
+  end
+
+  def good_hgt?(_), do: false
+
+  def good_hcl?("#" <> c) do
+    if String.length(c) == 6 do
+      c = String.to_charlist(c)
+      Enum.reduce(c, true, fn x, b -> b and (x in ?0..?9 or x in ?a..?z) end)
+    else
+      false
+    end
+  end
+
+  def good_hcl?(_), do: false
+
+  def good_ecl?(s), do: s in ["amb", "blu", "brn", "gry", "grn", "hzl", "oth"]
+
+  def good_pid?(p) do
+    if String.length(p) == 9 do
+      p = String.to_charlist(p)
+      Enum.reduce(p, true, fn x, b -> b and x in ?0..?9 end)
+    else
+      false
+    end
+  end
+
+  def good?(k, v) do
+    case k do
+      "byr" -> {good_number?(v, 4, 1920, 2002), 1}
+      "iyr" -> {good_number?(v, 4, 2010, 2020), 1}
+      "eyr" -> {good_number?(v, 4, 2020, 2030), 1}
+      "hgt" -> {good_hgt?(v), 1}
+      "hcl" -> {good_hcl?(v), 1}
+      "ecl" -> {good_ecl?(v), 1}
+      "pid" -> {good_pid?(v), 1}
+      "cid" -> {true, 0}
+    end
+  end
+end
+```
+
+```elixir
+Enum.count(fields, fn p ->
+  {g, n} =
+    Enum.reduce(p, {true, 0}, fn {k, v}, {g, n} ->
+      {g1, n1} = Part2.good?(k, v)
+      {g and g1, n + n1}
+    end)
+
+  g and n == 7
+end)
+```

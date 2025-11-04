@@ -1,0 +1,111 @@
+# Day 9
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+data =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def sort_preamble(p) do
+    p
+    |> Enum.sort()
+    |> Enum.with_index(fn x, i -> {i, x} end)
+    |> Enum.reduce(Map.new(), fn {i, x}, m -> Map.put(m, i, x) end)
+  end
+
+  def find_pair(preamble, number), do: find_pair(preamble, number, 0, map_size(preamble) - 1)
+
+  def find_pair(_, _, l, r) when l == r, do: false
+
+  def find_pair(p, n, l, r) do
+    s = p[l] + p[r]
+
+    case s do
+      ^n -> true
+      _ -> if s < n, do: find_pair(p, n, l + 1, r), else: find_pair(p, n, l, r - 1)
+    end
+  end
+
+  def find_first(data, pre_size) do
+    preamble = Enum.take(data, pre_size)
+    preamble = Enum.reverse(preamble)
+    data = Enum.drop(data, pre_size)
+
+    Enum.reduce_while(data, preamble, fn x, p ->
+      ps = sort_preamble(p)
+      result = find_pair(ps, x)
+      # IO.inspect(x)
+      # IO.inspect(ps)
+      # IO.inspect(result)
+      case result do
+        true -> {:cont, [x | Enum.take(p, pre_size - 1)]}
+        false -> {:halt, x}
+        nil -> {:halt, nil}
+      end
+    end)
+  end
+end
+```
+
+```elixir
+Part1.find_first(data, 25)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def index_data(d) do
+    d
+    |> Enum.with_index(fn x, i -> {i, x} end)
+    |> Enum.reduce(Map.new(), fn {i, x}, m -> Map.put(m, i, x) end)
+  end
+
+  def find_contiguous(data, number) do
+    data = index_data(data)
+
+    find_contiguous(data, number, 0, 1, data[0] + data[1])
+  end
+
+  def find_contiguous(d, n, l, r, s) do
+    # IO.puts("#{l}, #{r}, #{d[l]}, #{d[r]}, #{s}")
+    if s == n do
+      l..r
+      |> Enum.map(&d[&1])
+      |> Enum.min_max()
+      |> Tuple.to_list()
+      |> Enum.sum()
+    else
+      if s < n do
+        if r == map_size(d) - 1, do: nil, else: find_contiguous(d, n, l, r + 1, s + d[r + 1])
+      else
+        if l == map_size(d) - 2,
+          do: nil,
+          else: find_contiguous(d, n, l + 1, l + 2, d[l + 1] + d[l + 2])
+      end
+    end
+  end
+end
+```
+
+```elixir
+Part2.find_contiguous(data, 1_124_361_034)
+```

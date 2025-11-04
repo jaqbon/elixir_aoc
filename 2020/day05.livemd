@@ -1,0 +1,49 @@
+# Day 5
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+boarding_passes =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+## Part 1
+
+```elixir
+ids =
+  Enum.map(boarding_passes, fn <<row::bytes-size(7)>> <> <<col::bytes-size(3)>> ->
+    row =
+      Enum.reduce(String.to_charlist(row), 0, fn x, r ->
+        2 * r + if x == ?F, do: 0, else: 1
+      end)
+
+    col =
+      Enum.reduce(String.to_charlist(col), 0, fn x, r ->
+        2 * r + if x == ?L, do: 0, else: 1
+      end)
+
+    8 * row + col
+  end)
+```
+
+```elixir
+Enum.max(ids)
+```
+
+## Part 2
+
+```elixir
+Enum.to_list(0..953) -- Enum.sort(ids)
+```
