@@ -1,0 +1,201 @@
+# 2022 Day 21
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+## Setup
+
+```elixir
+jobs =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, ": "))
+  |> Enum.map(fn [name, str] -> [name, String.split(str, " ")] end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def run([], nums), do: nums["root"]
+
+  def run(ops, nums) do
+    {ops, nums} =
+      Enum.reduce(ops, {[], nums}, fn [name, [op1, op, op2]], {ops, nums} ->
+        n1 =
+          case nums[op1] do
+            nil -> op1
+            num -> num
+          end
+
+        n2 =
+          case nums[op2] do
+            nil -> op2
+            num -> num
+          end
+
+        if is_integer(n1) and is_integer(n2) do
+          result =
+            case op do
+              "+" -> n1 + n2
+              "-" -> n1 - n2
+              "*" -> n1 * n2
+              "/" -> div(n1, n2)
+            end
+
+          {ops, Map.put(nums, name, result)}
+        else
+          {[[name, [op1, op, op2]] | ops], nums}
+        end
+      end)
+
+    run(ops, nums)
+  end
+
+  def run(jobs) do
+    nums =
+      jobs
+      |> Enum.filter(fn [_name, op] -> length(op) == 1 end)
+      |> Enum.reduce(%{}, fn [name, [num]], ns ->
+        Map.put(ns, name, String.to_integer(num))
+      end)
+
+    ops =
+      jobs
+      |> Enum.filter(fn [_name, op] -> length(op) > 1 end)
+
+    run(ops, nums)
+  end
+end
+```
+
+```elixir
+Part1.run(jobs)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def run([], nums), do: nums["root"]
+
+  def run(ops, nums) do
+    {ops, nums, changes} =
+      Enum.reduce(ops, {[], nums, 0}, fn [name, op], {ops, nums, chs} ->
+        case name do
+          "humn" ->
+            {[[name, op] | ops], nums, chs}
+
+          _ ->
+            [op1, op, op2] = op
+
+            n1 =
+              case nums[op1] do
+                nil -> op1
+                num -> num
+              end
+
+            n2 =
+              case nums[op2] do
+                nil -> op2
+                num -> num
+              end
+
+            if is_integer(n1) and is_integer(n2) do
+              result =
+                case op do
+                  "+" -> n1 + n2
+                  "-" -> n1 - n2
+                  "*" -> n1 * n2
+                  "/" -> div(n1, n2)
+                end
+
+              {ops, Map.put(nums, name, result), chs + 1}
+            else
+              {[[name, [op1, op, op2]] | ops], nums, chs}
+            end
+        end
+      end)
+
+    case changes do
+      0 -> {ops, nums}
+      _ -> run(ops, nums)
+    end
+  end
+
+  def run(jobs) do
+    jobs =
+      jobs
+      |> Enum.map(fn [name, op] ->
+        case name do
+          "root" ->
+            [op1, _, op2] = op
+            ["root", [op1, "=", op2]]
+
+          "humn" ->
+            ["humn", ["?"]]
+
+          _ ->
+            [name, op]
+        end
+      end)
+
+    nums =
+      jobs
+      |> Enum.filter(fn [name, op] -> length(op) == 1 and name != "humn" end)
+      |> Enum.reduce(%{}, fn [name, [num]], ns ->
+        Map.put(ns, name, String.to_integer(num))
+      end)
+
+    ops =
+      jobs
+      |> Enum.filter(fn [name, op] -> length(op) > 1 or name == "humn" end)
+
+    run(ops, nums)
+  end
+end
+```
+
+```elixir
+{ops1, nums1} = Part2.run(jobs)
+```
+
+```elixir
+Enum.reduce(ops1, [], fn [name, op], ops ->
+  case name do
+    "humn" ->
+      ops
+
+    _ ->
+      [op1, op, op2] = op
+
+      op1 =
+        if Map.has_key?(nums1, op1) do
+          nums1[op1]
+        else
+          case op1 do
+            "humn" -> "?"
+            _ -> op1
+          end
+        end
+
+      op2 =
+        if Map.has_key?(nums1, op2) do
+          nums1[op2]
+        else
+          case op2 do
+            "humn" -> "?"
+            _ -> op2
+          end
+        end
+
+      [[name, [op1, op, op2]] | ops]
+  end
+end)
+```

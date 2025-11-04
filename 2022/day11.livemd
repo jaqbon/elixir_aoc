@@ -1,0 +1,180 @@
+# 2022 Day 11
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+monkeys =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.map(fn str -> String.replace_leading(str, " ", "") end)
+  |> Enum.chunk_by(fn str -> str == "" end)
+  |> Enum.filter(fn list -> list != [""] end)
+  |> Enum.reduce(%{}, fn [num, items, op, test, iftrue, iffalse], ms ->
+    [_, num, _] = String.split(num, [" ", ":"])
+    num = String.to_integer(num)
+
+    [_, _ | items] = items |> String.replace(",", "") |> String.split(" ")
+    items = Enum.map(items, fn str -> String.to_integer(str) end)
+
+    [_, op] = op |> String.replace(" ", "") |> String.split(":")
+
+    [test | _] = test |> String.split(" ") |> Enum.reverse()
+    test = String.to_integer(test)
+
+    [iftrue | _] = iftrue |> String.split(" ") |> Enum.reverse()
+    iftrue = String.to_integer(iftrue)
+
+    [iffalse | _] = iffalse |> String.split(" ") |> Enum.reverse()
+    iffalse = String.to_integer(iffalse)
+
+    Map.put(ms, num, {items, op, test, iftrue, iffalse, 0})
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def worry(old, op) do
+    if String.contains?(op, "+") do
+      [_, x] = String.split(op, "+")
+      old + String.to_integer(x)
+    else
+      case String.split(op, "*") do
+        [_, "old"] -> old * old
+        [_, x] -> old * String.to_integer(x)
+      end
+    end
+  end
+
+  def one_round(monkeys, n, n), do: monkeys
+
+  def one_round(monkeys, i, n) do
+    {items, op, test, iftrue, iffalse, total} = monkeys[i]
+    monkeys = Map.put(monkeys, i, {[], op, test, iftrue, iffalse, total + length(items)})
+
+    monkeys =
+      Enum.reduce(items, monkeys, fn item, monkeys ->
+        new_worry = div(worry(item, op), 3)
+
+        new_monkey =
+          case rem(new_worry, test) do
+            0 -> iftrue
+            _ -> iffalse
+          end
+
+        {items, op, test, iftrue, iffalse, total} = monkeys[new_monkey]
+        items = Enum.reverse([new_worry | Enum.reverse(items)])
+        Map.put(monkeys, new_monkey, {items, op, test, iftrue, iffalse, total})
+      end)
+
+    # IO.inspect(monkeys)
+    one_round(monkeys, i + 1, n)
+  end
+
+  def one_round(monkeys), do: one_round(monkeys, 0, map_size(monkeys))
+
+  def rounds(monkeys, n, n), do: monkeys
+
+  def rounds(monkeys, i, n), do: rounds(one_round(monkeys), i + 1, n)
+
+  def rounds(monkeys, n), do: rounds(monkeys, 0, n)
+end
+```
+
+```elixir
+monkeys1 = Part1.rounds(monkeys, 20)
+```
+
+```elixir
+[n1, n2 | _] =
+  monkeys1
+  |> Enum.map(fn {_, {_, _, _, _, _, n}} -> n end)
+  |> Enum.sort(:desc)
+
+n1 * n2
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def worry(old, op) do
+    if String.contains?(op, "+") do
+      [_, x] = String.split(op, "+")
+      old + String.to_integer(x)
+    else
+      case String.split(op, "*") do
+        [_, "old"] -> old * old
+        [_, x] -> old * String.to_integer(x)
+      end
+    end
+  end
+
+  def one_round(monkeys, _, n, n), do: monkeys
+
+  def one_round(monkeys, r, i, n) do
+    {items, op, test, iftrue, iffalse, total} = monkeys[i]
+    monkeys = Map.put(monkeys, i, {[], op, test, iftrue, iffalse, total + length(items)})
+
+    monkeys =
+      Enum.reduce(items, monkeys, fn item, monkeys ->
+        # no division by 3 <--------------
+        new_worry = worry(item, op)
+
+        new_monkey =
+          case rem(new_worry, test) do
+            0 -> iftrue
+            _ -> iffalse
+          end
+
+        {items, op, test, iftrue, iffalse, total} = monkeys[new_monkey]
+        items = Enum.reverse([new_worry | Enum.reverse(items)])
+        items = Enum.map(items, fn i -> rem(i, r) end)
+        Map.put(monkeys, new_monkey, {items, op, test, iftrue, iffalse, total})
+      end)
+
+    # IO.inspect(monkeys)
+    one_round(monkeys, r, i + 1, n)
+  end
+
+  def one_round(monkeys, r), do: one_round(monkeys, r, 0, map_size(monkeys))
+
+  def rounds(monkeys, _, n, n), do: monkeys
+
+  def rounds(monkeys, r, i, n), do: rounds(one_round(monkeys, r), r, i + 1, n)
+
+  def rounds(monkeys, n) do
+    reducer = Enum.reduce(monkeys, 1, fn {_, {_, _, x, _, _, _}}, r -> r * x end)
+    rounds(monkeys, reducer, 0, n)
+  end
+end
+```
+
+```elixir
+monkeys
+```
+
+```elixir
+monkeys2 = Part2.rounds(monkeys, 10000)
+```
+
+```elixir
+[n12, n22 | _] =
+  monkeys2
+  |> Enum.map(fn {_, {_, _, _, _, _, n}} -> n end)
+  |> Enum.sort(:desc)
+
+n12 * n22
+```

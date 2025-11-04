@@ -1,0 +1,96 @@
+# 2022 Day 3
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+strings =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+rucksacks =
+  strings
+  |> Enum.map(fn str -> String.to_charlist(str) end)
+
+compartments =
+  strings
+  |> Enum.map(fn str ->
+    {s1, s2} = String.split_at(str, div(String.length(str), 2))
+    [String.to_charlist(s1), String.to_charlist(s2)]
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def find_common([items1, items2]) do
+    set1 = Enum.reduce(items1, MapSet.new(), fn c, s -> MapSet.put(s, c) end)
+
+    Enum.reduce_while(items2, nil, fn c, _ ->
+      case MapSet.member?(set1, c) do
+        true -> {:halt, c}
+        _ -> {:cont, nil}
+      end
+    end)
+  end
+
+  def priority(item) do
+    if item < ?a, do: item - ?A + 27, else: item - ?a + 1
+  end
+end
+```
+
+```elixir
+compartments
+|> Enum.map(fn items -> Part1.find_common(items) end)
+|> Enum.map(fn item -> Part1.priority(item) end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def find_common([items1, items2, items3]) do
+    set1 = Enum.reduce(items1, MapSet.new(), fn c, s -> MapSet.put(s, c) end)
+
+    set12 =
+      Enum.reduce(items2, MapSet.new(), fn c, s ->
+        case MapSet.member?(set1, c) do
+          true -> MapSet.put(s, c)
+          _ -> s
+        end
+      end)
+
+    Enum.reduce_while(items3, nil, fn c, _ ->
+      case MapSet.member?(set12, c) do
+        true -> {:halt, c}
+        _ -> {:cont, nil}
+      end
+    end)
+  end
+
+  def priority(item) do
+    if item < ?a, do: item - ?A + 27, else: item - ?a + 1
+  end
+end
+```
+
+```elixir
+rucksacks
+|> Enum.chunk_every(3)
+|> Enum.map(fn sacks -> Part2.find_common(sacks) end)
+|> Enum.map(fn item -> Part1.priority(item) end)
+|> Enum.sum()
+```

@@ -1,0 +1,245 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day14_Part1 do
+  def make_scans(lines) do
+    lines
+    |> Enum.map(&String.split(&1,[","," ","->"], trim: true))
+    |> Enum.map(&Enum.map(&1, fn str -> String.to_integer(str) end))
+    |> Enum.map(&Enum.chunk_every(&1, 2))
+  end
+
+
+  def make_path([_], grid), do: grid
+
+  def make_path([[x1,y1], [x2,y2] | rest], grid) do
+    delx = x2 - x1
+    dely = y2 - y1
+
+    n = max(abs(delx), abs(dely))
+
+    dx = if delx == 0, do: 0, else: div(delx, n)
+    dy = if dely == 0, do: 0, else: div(dely, n)
+
+    {_,_, new_grid} =
+      0..n
+      |> Enum.reduce({x1,y1,grid}, fn _, {x,y,g} -> {x+dx,y+dy,Map.put_new(g,{x,y},"#")} end)
+
+    make_path([[x2,y2] | rest], new_grid)
+  end
+
+
+  def make_grid([], grid), do: grid
+
+  def make_grid([scan | rest], grid), do: make_grid(rest, make_path(scan, grid))
+
+  def make_grid(scans), do: make_grid(scans, %{})
+
+
+  def drop_grain(grid, {x,_}, {x,_,_}, count), do: {grid, count}
+  def drop_grain(grid, {x,_}, {_,x,_}, count), do: {grid, count}
+  def drop_grain(grid, {_,y}, {_,_,y}, count), do: {grid, count}
+
+  def drop_grain(grid, {x,y}, limits, count) do
+    left  = grid[{x-1,y+1}]
+    down  = grid[{x,y+1}]
+    right = grid[{x+1,y+1}]
+
+    case {left, down, right} do
+      {_,nil,_} -> drop_grain(grid, {x,y+1}, limits, count)
+      {nil,_,_} -> drop_grain(grid, {x-1,y+1}, limits, count)
+      {_,_,nil} -> drop_grain(grid, {x+1,y+1}, limits, count)
+      _         -> drop_sand(Map.put_new(grid, {x,y}, "o"), limits, count+1)
+    end
+  end
+
+  def drop_sand(grid, limits, count), do: drop_grain(grid, {500, 0}, limits, count)
+
+  def drop_sand(grid, limits), do: drop_sand(grid, limits, 0)
+
+
+  def write_y(y) do
+    str =
+      case rem(y,10) do
+        0 -> to_string(10*div(y,10))
+        _ -> "   "
+      end
+
+    case String.length(str) do
+      3 -> str
+      2 -> " " <> str
+      1 -> "  " <> str
+    end
+  end
+
+
+  def display(grid, {xlo, xhi, yhi}) do
+    Enum.each(0..yhi, fn y ->
+
+      IO.write(write_y(y))
+
+      Enum.each(xlo..xhi, fn x ->
+        c =
+          case grid[{x, y}] do
+            nil -> "."
+            c   -> c
+          end
+
+        IO.write(c)
+      end)
+
+      IO.puts("")
+    end)
+  end
+end
+```
+
+```elixir
+scans = Day14_Part1.make_scans(lines)
+```
+
+```elixir
+grid = Day14_Part1.make_grid(scans)
+```
+
+```elixir
+{xlo, xhi, yhi} =
+  grid
+  |> Enum.reduce({500,500,0}, fn {{x,y},_}, {xmin,xmax,ymax} ->
+        {min(x,xmin),max(x,xmax),max(y,ymax)}
+      end)
+```
+
+```elixir
+limits = {xlo-1, xhi+1, yhi+1}
+```
+
+```elixir
+{final_grid, final_count} = Day14_Part1.drop_sand(grid, limits)
+```
+
+```elixir
+Day14_Part1.display(grid, {xlo, xhi, yhi})
+```
+
+```elixir
+Day14_Part1.display(final_grid, {xlo, xhi, yhi})
+```
+
+```elixir
+defmodule Day14_Part2 do
+  def make_scans(lines) do
+    lines
+    |> Enum.map(&String.split(&1,[","," ","->"], trim: true))
+    |> Enum.map(&Enum.map(&1, fn str -> String.to_integer(str) end))
+    |> Enum.map(&Enum.chunk_every(&1, 2))
+  end
+
+
+  def make_path([_], grid), do: grid
+
+  def make_path([[x1,y1], [x2,y2] | rest], grid) do
+    delx = x2 - x1
+    dely = y2 - y1
+
+    n = max(abs(delx), abs(dely))
+
+    dx = if delx == 0, do: 0, else: div(delx, n)
+    dy = if dely == 0, do: 0, else: div(dely, n)
+
+    {_,_, new_grid} =
+      0..n
+      |> Enum.reduce({x1,y1,grid}, fn _, {x,y,g} -> {x+dx,y+dy,Map.put_new(g,{x,y},"#")} end)
+
+    make_path([[x2,y2] | rest], new_grid)
+  end
+
+
+  def make_grid([], grid), do: grid
+
+  def make_grid([scan | rest], grid), do: make_grid(rest, make_path(scan, grid))
+
+  def make_grid(scans), do: make_grid(scans, %{})
+
+
+  def drop_grain(grid, {x,y}, {_,_,yhi} = limits, count) do
+    left  = if y == yhi, do: "#", else: grid[{x-1,y+1}]
+    down  = if y == yhi, do: "#", else: grid[{x,y+1}]
+    right = if y == yhi, do: "#", else: grid[{x+1,y+1}]
+
+    case {left, down, right} do
+      {_,nil,_} -> drop_grain(grid, {x,y+1}, limits, count)
+      {nil,_,_} -> drop_grain(grid, {x-1,y+1}, limits, count)
+      {_,_,nil} -> drop_grain(grid, {x+1,y+1}, limits, count)
+      _         -> drop_sand(Map.put_new(grid, {x,y}, "o"), limits, count+1)
+    end
+  end
+
+  def drop_sand(grid, limits, count) do
+    case grid[{500,0}] do
+      "o" -> count
+      _   -> drop_grain(grid, {500, 0}, limits, count)
+    end
+  end
+
+  def drop_sand(grid, limits), do: drop_sand(grid, limits, 0)
+
+
+  def write_y(y) do
+    str =
+      case rem(y,10) do
+        0 -> to_string(10*div(y,10))
+        _ -> "   "
+      end
+
+    case String.length(str) do
+      3 -> str
+      2 -> " " <> str
+      1 -> "  " <> str
+    end
+  end
+
+
+  def display(grid, {xlo, xhi, yhi}) do
+    Enum.each(0..yhi, fn y ->
+
+      IO.write(write_y(y))
+
+      Enum.each(xlo..xhi, fn x ->
+        c =
+          case grid[{x, y}] do
+            nil -> "."
+            c   -> c
+          end
+
+        IO.write(c)
+      end)
+
+      IO.puts("")
+    end)
+  end
+end
+```
+
+```elixir
+Day14_Part2.drop_sand(grid, limits)
+```

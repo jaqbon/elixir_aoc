@@ -1,0 +1,55 @@
+# 2022 Day 4
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+range_pairs =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn str -> String.split(str, [",", "-"]) end)
+  |> Enum.map(fn [x1, x2, y1, y2] ->
+    [
+      {String.to_integer(x1), String.to_integer(x2)},
+      {String.to_integer(y1), String.to_integer(y2)}
+    ]
+  end)
+```
+
+```elixir
+sorted_pairs =
+  range_pairs
+  |> Enum.map(fn [{x1, _} = p1, {y1, _} = p2] ->
+    if x1 < y1 do
+      [p1, p2]
+    else
+      [p2, p1]
+    end
+  end)
+```
+
+## Part 1
+
+```elixir
+sorted_pairs
+|> Enum.filter(fn [{x1, x2}, {y1, y2}] -> x1 == y1 or y2 <= x2 end)
+|> Enum.count()
+```
+
+## Part 2
+
+```elixir
+sorted_pairs
+|> Enum.filter(fn [{_, x2}, {y1, _}] -> x2 >= y1 end)
+|> Enum.count()
+```

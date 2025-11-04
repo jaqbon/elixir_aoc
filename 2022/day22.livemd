@@ -1,0 +1,534 @@
+# 2022 Day 22
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[grid, _, [path] | _] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.chunk_by(fn str -> str == "" end)
+```
+
+```elixir
+{grid, rows, cols} =
+  Enum.reduce(grid, {%{}, 0, 0}, fn chars, {g, row, cols0} ->
+    chars = String.to_charlist(chars)
+
+    {g, row, cols} =
+      Enum.reduce(chars, {g, row, 0}, fn c, {g, row, col} ->
+        {Map.put(g, {row, col}, c), row, col + 1}
+      end)
+
+    {g, row + 1, max(cols, cols0)}
+  end)
+
+grid =
+  Enum.reduce(0..(rows - 1), grid, fn row, grid ->
+    Enum.reduce(0..(cols - 1), grid, fn col, grid ->
+      case grid[{row, col}] do
+        # trailing space
+        nil -> Map.put(grid, {row, col}, 32)
+        _ -> grid
+      end
+    end)
+  end)
+```
+
+```elixir
+grid[{0, 0}]
+```
+
+```elixir
+path
+```
+
+```elixir
+path =
+  path
+  |> String.to_charlist()
+  |> Enum.chunk_by(fn c -> c == ?R or c == ?L end)
+  |> Enum.map(fn l ->
+    case l do
+      [?R] -> "R"
+      [?L] -> "L"
+      _ -> String.to_integer(to_string(l))
+    end
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def find_start_col(grid, col) do
+    case grid[{0, col}] do
+      ?. -> col
+      _ -> find_start_col(grid, col + 1)
+    end
+  end
+
+  def find_start_col(grid), do: find_start_col(grid, 0)
+
+  def forward(_, _, _, 0, _, pose), do: pose
+
+  def forward(grid, rows, cols, stp, {row0, col0}, {row, col, dir}) do
+    {row1, col1} =
+      case dir do
+        0 -> {row, rem(col + 1, cols)}
+        1 -> {rem(row + 1, rows), col}
+        2 -> {row, rem(col - 1 + cols, cols)}
+        3 -> {rem(row - 1 + rows, rows), col}
+      end
+
+    case grid[{row1, col1}] do
+      # space
+      32 -> forward(grid, rows, cols, stp, {row0, col0}, {row1, col1, dir})
+      ?. -> forward(grid, rows, cols, stp - 1, {row1, col1}, {row1, col1, dir})
+      ?# -> {row0, col0, dir}
+    end
+  end
+
+  def find_finish(_, _, _, [], {row, col, dir}), do: {row + 1, col + 1, dir}
+
+  def find_finish(grid, rows, cols, [move | path], {row, col, dir}) do
+    # IO.inspect([move,path,row,col,dir])
+
+    case move do
+      "R" ->
+        find_finish(grid, rows, cols, path, {row, col, rem(dir + 1, 4)})
+
+      "L" ->
+        find_finish(grid, rows, cols, path, {row, col, rem(dir + 3, 4)})
+
+      stp ->
+        {row, col, dir} = forward(grid, rows, cols, stp, {row, col}, {row, col, dir})
+        find_finish(grid, rows, cols, path, {row, col, dir})
+    end
+  end
+
+  def find_finish(grid, rows, cols, path) do
+    find_finish(grid, rows, cols, path, {0, find_start_col(grid), 0})
+  end
+end
+```
+
+```elixir
+{row1, col1, dir1} = Part1.find_finish(grid, rows, cols, path)
+
+1000 * row1 + 4 * col1 + dir1
+```
+
+## Part 1.5
+
+```elixir
+defmodule Part1_5 do
+  @n 4
+
+  def find_start_col(grid, col) do
+    case grid[{0, col}] do
+      ?. -> col
+      _ -> find_start_col(grid, col + 1)
+    end
+  end
+
+  def find_start_col(grid), do: find_start_col(grid, 0)
+
+  def find_face(row, col) do
+    row_block = div(row, @n)
+    col_block = div(col, @n)
+
+    case row_block do
+      0 ->
+        0
+
+      1 ->
+        case col_block do
+          0 -> 1
+          1 -> 2
+          2 -> 3
+        end
+
+      2 ->
+        case col_block do
+          2 -> 4
+          3 -> 5
+        end
+    end
+  end
+
+  def find_row_col(face, r, c) do
+    case face do
+      0 -> {r, 2 * @n + c}
+      1 -> {@n + r, c}
+      2 -> {@n + r, @n + c}
+      3 -> {@n + r, 2 * @n + c}
+      4 -> {2 * @n + r, 2 * @n + c}
+      5 -> {2 * @n + r, 3 * @n + c}
+    end
+  end
+
+  def stitch_step(f, r, c, d) do
+    case f do
+      0 ->
+        case d do
+          0 -> if c == @n - 1, do: {5, @n - 1 - r, @n - 1, 2}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {3, 0, c, 1}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {2, 0, r, 1}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {1, 0, @n - 1 - c, 1}, else: {f, r - 1, c, 3}
+        end
+
+      1 ->
+        case d do
+          0 -> if c == @n - 1, do: {2, r, 0, 0}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {4, @n - 1, @n - 1 - c, 3}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {5, @n - 1, @n - 1 - r, 3}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {0, 0, @n - 1 - c, 1}, else: {f, r - 1, c, 3}
+        end
+
+      2 ->
+        case d do
+          0 -> if c == @n - 1, do: {3, r, 0, 0}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {4, c, 0, 0}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {1, r, @n - 1, 2}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {0, c, 0, 0}, else: {f, r - 1, c, 3}
+        end
+
+      3 ->
+        case d do
+          0 -> if c == @n - 1, do: {5, 0, @n - 1 - r, 1}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {4, 0, c, 1}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {2, r, @n - 1, 2}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {0, @n - 1, c, 3}, else: {f, r - 1, c, 3}
+        end
+
+      4 ->
+        case d do
+          0 -> if c == @n - 1, do: {5, r, 0, 0}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {1, @n - 1, @n - 1 - c, 3}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {2, @n - 1, @n - 1 - r, 3}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {3, @n - 1, c, 3}, else: {f, r - 1, c, 3}
+        end
+
+      5 ->
+        case d do
+          0 -> if c == @n - 1, do: {0, @n - 1 - r, @n - 1, 2}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {1, @n - 1, @n - 1 - r, 0}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {4, r, @n - 1, 2}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {3, @n - 1 - c, @n - 1, 2}, else: {f, r - 1, c, 3}
+        end
+    end
+  end
+
+  def stitch_step(row, col, dir) do
+    face = find_face(row, col)
+
+    r = rem(row, @n)
+    c = rem(col, @n)
+
+    stitch_step(face, r, c, dir)
+  end
+
+  def forward(_, 0, {row, col, dir}, track), do: {row, col, dir, track}
+
+  def forward(grid, stp, {row0, col0, dir0}, track) do
+    {face1, r1, c1, dir1} = stitch_step(row0, col0, dir0)
+
+    {row1, col1} = find_row_col(face1, r1, c1)
+
+    case grid[{row1, col1}] do
+      ?. -> forward(grid, stp - 1, {row1, col1, dir1}, [{row1, col1, dir1} | track])
+      ?# -> {row0, col0, dir0, track}
+    end
+  end
+
+  def find_finish(_, [], {row, col, dir}, track) do
+    {row + 1, col + 1, dir, Enum.reverse([{row, col, dir} | track])}
+  end
+
+  def find_finish(grid, [move | path], {row, col, dir}, track) do
+    # IO.inspect([move, path, row, col, dir, find_face(row, col) + 1])
+
+    track = [{row, col, dir} | track]
+
+    case move do
+      "R" ->
+        find_finish(grid, path, {row, col, rem(dir + 1, 4)}, track)
+
+      "L" ->
+        find_finish(grid, path, {row, col, rem(dir + 3, 4)}, track)
+
+      stp ->
+        {row, col, dir, track} = forward(grid, stp, {row, col, dir}, track)
+        find_finish(grid, path, {row, col, dir}, track)
+    end
+  end
+
+  def find_finish(grid, path) do
+    {r, c, d, t} = find_finish(grid, path, {0, find_start_col(grid), 0}, [])
+    {r, c, d, fix_track(t)}
+  end
+
+  def fix_track(track) do
+    Enum.reduce(track, [], fn {r, c, d}, t ->
+      case t do
+        [] -> [{r, c, d}]
+        [{r0, c0, d0} | _] -> if {r, c, d} == {r0, c0, d0}, do: t, else: [{r, c, d} | t]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  def show(grid, track) do
+    rmax = 3 * @n - 1
+    cmax = 4 * @n - 1
+
+    Enum.reduce(0..rmax, 0, fn row, _ ->
+      Enum.reduce(0..cmax, 0, fn col, _ ->
+        rtn = Enum.find(track, fn {r, c, _} -> r == row && c == col end)
+
+        case rtn do
+          {_, _, d} ->
+            IO.write(
+              case d do
+                0 -> ">"
+                1 -> "v"
+                2 -> "<"
+                3 -> "^"
+              end
+            )
+
+          _ ->
+            IO.write(List.to_string([grid[{row, col}]]))
+        end
+      end)
+
+      IO.puts("")
+    end)
+  end
+end
+```
+
+```elixir
+{row1_5, col1_5, dir1_5, track} = Part1_5.find_finish(grid, path)
+```
+
+```elixir
+1000 * row1_5 + 4 * col1_5 + dir1_5
+```
+
+```elixir
+Part1_5.show(grid, track)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  @n 50
+
+  def find_start_col(grid, col) do
+    case grid[{0, col}] do
+      ?. -> col
+      _ -> find_start_col(grid, col + 1)
+    end
+  end
+
+  def find_start_col(grid), do: find_start_col(grid, 0)
+
+  def find_face(row, col) do
+    row_block = div(row, @n)
+    col_block = div(col, @n)
+
+    case row_block do
+      0 ->
+        case col_block do
+          1 -> 0
+          2 -> 1
+        end
+
+      1 ->
+        4
+
+      2 ->
+        case col_block do
+          0 -> 3
+          1 -> 2
+        end
+
+      3 ->
+        5
+    end
+  end
+
+  def find_row_col(face, r, c) do
+    case face do
+      0 -> {r, @n + c}
+      1 -> {r, 2 * @n + c}
+      2 -> {2 * @n + r, @n + c}
+      3 -> {2 * @n + r, c}
+      4 -> {@n + r, @n + c}
+      5 -> {3 * @n + r, c}
+    end
+  end
+
+  def stitch_step(f, r, c, d) do
+    case f do
+      0 ->
+        case d do
+          0 -> if c == @n - 1, do: {1, r, 0, 0}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {4, 0, c, 1}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {3, @n - 1 - r, 0, 0}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {5, c, 0, 0}, else: {f, r - 1, c, 3}
+        end
+
+      1 ->
+        case d do
+          0 -> if c == @n - 1, do: {2, @n - 1 - r, @n - 1, 2}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {4, c, @n - 1, 2}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {0, r, @n - 1, 2}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {5, @n - 1, c, 3}, else: {f, r - 1, c, 3}
+        end
+
+      2 ->
+        case d do
+          0 -> if c == @n - 1, do: {1, @n - 1 - r, @n - 1, 2}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {5, c, @n - 1, 2}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {3, r, @n - 1, 2}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {4, @n - 1, c, 3}, else: {f, r - 1, c, 3}
+        end
+
+      3 ->
+        case d do
+          0 -> if c == @n - 1, do: {2, r, 0, 0}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {5, 0, c, 1}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {0, @n - 1 - r, 0, 0}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {4, c, 0, 0}, else: {f, r - 1, c, 3}
+        end
+
+      4 ->
+        case d do
+          0 -> if c == @n - 1, do: {1, @n - 1, r, 3}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {2, 0, c, 1}, else: {f, r + 1, c, 1}
+          2 -> if r == 0, do: {3, 0, r, 1}, else: {f, r - 1, c, 3}
+          3 -> if c == 0, do: {0, @n - 1, c, 3}, else: {f, r, c - 1, 2}
+        end
+
+      5 ->
+        case d do
+          0 -> if c == @n - 1, do: {2, @n - 1, r, 3}, else: {f, r, c + 1, 0}
+          1 -> if r == @n - 1, do: {1, 0, c, 1}, else: {f, r + 1, c, 1}
+          2 -> if c == 0, do: {0, 0, r, 1}, else: {f, r, c - 1, 2}
+          3 -> if r == 0, do: {3, @n - 1, c, 3}, else: {f, r - 1, c, 3}
+        end
+    end
+  end
+
+  def stitch_step(row, col, dir) do
+    face = find_face(row, col)
+
+    r = rem(row, @n)
+    c = rem(col, @n)
+
+    stitch_step(face, r, c, dir)
+  end
+
+  def forward(_, 0, {row, col, dir}, track), do: {row, col, dir, track}
+
+  def forward(grid, stp, {row0, col0, dir0}, track) do
+    {face1, r1, c1, dir1} = stitch_step(row0, col0, dir0)
+
+    {row1, col1} = find_row_col(face1, r1, c1)
+
+    case grid[{row1, col1}] do
+      ?. -> forward(grid, stp - 1, {row1, col1, dir1}, [{row1, col1, dir1} | track])
+      ?# -> {row0, col0, dir0, track}
+    end
+  end
+
+  def find_finish(_, [], {row, col, dir}, track) do
+    {row + 1, col + 1, dir, Enum.reverse([{row, col, dir} | track])}
+  end
+
+  def find_finish(grid, [move | path], {row, col, dir}, track) do
+    # IO.inspect([move, path, row, col, dir, find_face(row, col) + 1])
+
+    track = [{row, col, dir} | track]
+
+    case move do
+      "R" ->
+        find_finish(grid, path, {row, col, rem(dir + 1, 4)}, track)
+
+      "L" ->
+        find_finish(grid, path, {row, col, rem(dir + 3, 4)}, track)
+
+      stp ->
+        {row, col, dir, track} = forward(grid, stp, {row, col, dir}, track)
+        find_finish(grid, path, {row, col, dir}, track)
+    end
+  end
+
+  def find_finish(grid, path) do
+    {r, c, d, t} = find_finish(grid, path, {0, find_start_col(grid), 0}, [])
+    {r, c, d, fix_track(t)}
+  end
+
+  def fix_track(track) do
+    Enum.reduce(track, [], fn {r, c, d}, t ->
+      case t do
+        [] -> [{r, c, d}]
+        [{r0, c0, d0} | _] -> if {r, c, d} == {r0, c0, d0}, do: t, else: [{r, c, d} | t]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  def show(grid, track) do
+    rmax = 4 * @n - 1
+    cmax = 3 * @n - 1
+
+    Enum.reduce(0..rmax, 0, fn row, _ ->
+      Enum.reduce(0..cmax, 0, fn col, _ ->
+        rtn = Enum.find(track, fn {r, c, _} -> r == row && c == col end)
+
+        case rtn do
+          {_, _, d} ->
+            IO.write(
+              case d do
+                0 -> ">"
+                1 -> "v"
+                2 -> "<"
+                3 -> "^"
+              end
+            )
+
+          _ ->
+            IO.write(List.to_string([grid[{row, col}]]))
+        end
+      end)
+
+      IO.puts("")
+    end)
+  end
+end
+```
+
+```elixir
+Part2.find_start_col(grid)
+```
+
+```elixir
+{row2, col2, dir2, track} = Part2.find_finish(grid, path)
+
+1000 * row2 + 4 * col2 + dir2
+```

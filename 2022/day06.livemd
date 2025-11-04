@@ -1,0 +1,45 @@
+# 2022 Day 6
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[data] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+data = String.to_charlist(data)
+```
+
+```elixir
+defmodule Parse do
+  def find_start(data, size, offset) do
+    case length(Enum.uniq(Enum.take(data, size))) == size do
+      true -> offset
+      _ -> find_start(Enum.drop(data, 1), size, offset + 1)
+    end
+  end
+end
+```
+
+## Part 1
+
+```elixir
+Parse.find_start(data, 4, 4)
+```
+
+## Part 2
+
+```elixir
+Parse.find_start(data, 14, 14)
+```

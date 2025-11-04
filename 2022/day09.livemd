@@ -1,0 +1,178 @@
+# 2022 Day 9
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+moves =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn str ->
+    [dir, val] = String.split(str, " ")
+    [dir, String.to_integer(val)]
+  end)
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def step({xh, yh} = head, {xt, yt} = tail, history) do
+    history = MapSet.put(history, {xt, yt})
+
+    {dx, dy} = {xh - xt, yh - yt}
+
+    if max(abs(dx), abs(dy)) <= 1 do
+      {tail, history}
+    else
+      dx = if abs(dx) == 0, do: 0, else: div(dx, abs(dx))
+      dy = if abs(dy) == 0, do: 0, else: div(dy, abs(dy))
+
+      step(head, {xt + dx, yt + dy}, history)
+    end
+  end
+
+  def rope([], _, _, history), do: history
+
+  def rope([[dir, size] | moves], {xh, yh}, tail, history) do
+    head =
+      case dir do
+        "R" -> {xh + size, yh}
+        "L" -> {xh - size, yh}
+        "U" -> {xh, yh + size}
+        "D" -> {xh, yh - size}
+      end
+
+    {tail, history} = step(head, tail, history)
+
+    rope(moves, head, tail, history)
+  end
+
+  def rope(moves), do: rope(moves, {0, 0}, {0, 0}, MapSet.new())
+end
+```
+
+```elixir
+Part1.rope(moves) |> MapSet.size()
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def step({xh, yh} = head, {xt, yt} = tail, history) do
+    history =
+      case history do
+        nil -> nil
+        _ -> MapSet.put(history, {xt, yt})
+      end
+
+    {dx, dy} = {xh - xt, yh - yt}
+
+    if max(abs(dx), abs(dy)) <= 1 do
+      {tail, history}
+    else
+      dx = if abs(dx) == 0, do: 0, else: div(dx, abs(dx))
+      dy = if abs(dy) == 0, do: 0, else: div(dy, abs(dy))
+
+      step(head, {xt + dx, yt + dy}, history)
+    end
+  end
+
+  def long_step([head, tail | rope], new_rope, history) do
+    if rope == [] do
+      {tail, history} = step(head, tail, history)
+      {Enum.reverse([tail | new_rope]), history}
+    else
+      {tail, _} = step(head, tail, nil)
+      long_step([tail | rope], [tail | new_rope], history)
+    end
+  end
+
+  def long_rope([], _, history), do: history
+
+  def long_rope([[dir, size] | moves], [{xh, yh} | rope], history) do
+    head =
+      case dir do
+        "R" -> {xh + size, yh}
+        "L" -> {xh - size, yh}
+        "U" -> {xh, yh + size}
+        "D" -> {xh, yh - size}
+      end
+
+    {rope, history} = long_step([head | rope], [head], history)
+
+    #    {dx,dy} =
+    #    case dir do
+    #      "R" -> { 1, 0}
+    #      "L" -> {-1, 0}
+    #      "U" -> { 0, 1}
+    #      "D" -> { 0,-1}
+    #    end
+    #
+    #    {rope, history} =
+    #    Enum.reduce(1..size, {rope,history}, fn _,{rope, history} ->
+    #      [{x,y}|rope] = rope
+    #      head = {x+dx,y+dy}
+    #      long_step([head|rope], [head], history)
+    #    end)
+
+    # show(rope)
+
+    long_rope(moves, rope, history)
+  end
+
+  def long_rope(moves, num) do
+    rope = for _ <- 1..num, do: {0, 0}
+
+    long_rope(moves, rope, MapSet.new())
+  end
+
+  def show(rope) do
+    {{xn, _}, {xm, _}} = Enum.min_max_by(rope, fn {x, y} -> x end)
+    {{_, yn}, {_, ym}} = Enum.min_max_by(rope, fn {x, y} -> y end)
+
+    for y <- ym..yn, x <- xn..xm do
+      c = if Enum.member?(rope, {x, y}), do: "#", else: "."
+      IO.write(c)
+      if x == xm, do: IO.puts("")
+    end
+
+    IO.puts("-----------------------------------------------------")
+  end
+end
+```
+
+```elixir
+tail_positions = Part2.long_rope(moves, 10)
+```
+
+```elixir
+MapSet.size(tail_positions)
+```
+
+```elixir
+Enum.sort(tail_positions)
+```
+
+```elixir
+Enum.sort_by(tail_positions, fn {x, y} -> y end)
+```
+
+```elixir
+for y <- 6..-5, x <- -11..10 do
+  c = if MapSet.member?(tail_positions, {x, y}), do: "##", else: ".."
+  IO.write(c)
+  if x == 10, do: IO.puts("")
+end
+```

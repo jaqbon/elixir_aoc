@@ -1,0 +1,96 @@
+# 2022 Day 5
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+[layers, steps] =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.chunk_by(fn str -> str == "" end)
+  |> Enum.filter(fn x -> x != [""] end)
+```
+
+```elixir
+[num | layers] =
+  layers
+  |> Enum.map(fn str -> String.to_charlist(str) end)
+  |> Enum.map(fn str -> Enum.chunk_every(str, 4) end)
+  |> Enum.reverse()
+
+num = length(num)
+
+stacks = Enum.reduce(1..num, %{}, fn i, s -> Map.put(s, i, []) end)
+
+stacks =
+  Enum.reduce(layers, stacks, fn layer, s ->
+    layer
+    |> Enum.with_index(1)
+    |> Enum.reduce(s, fn {str, i}, s ->
+      case Enum.at(str, 0) do
+        ?[ -> Map.put(s, i, [Enum.at(str, 1) | s[i]])
+        _ -> s
+      end
+    end)
+  end)
+```
+
+```elixir
+steps =
+  steps
+  |> Enum.map(fn str -> String.split(str) end)
+  |> Enum.map(fn [_, n, _, f, _, t] ->
+    [String.to_integer(n), String.to_integer(f), String.to_integer(t)]
+  end)
+```
+
+## Part 1
+
+```elixir
+stacks_1 =
+  Enum.reduce(steps, stacks, fn [n, f, t], s ->
+    Enum.reduce(1..n, s, fn _, s ->
+      [x | xs] = s[f]
+      Map.put(Map.put(s, f, xs), t, [x | s[t]])
+    end)
+  end)
+
+Enum.reduce(1..num, [], fn i, m ->
+  [c | _] = stacks_1[i]
+  [c | m]
+end)
+|> Enum.reverse()
+```
+
+## Part 2
+
+```elixir
+stacks_2 =
+  Enum.reduce(steps, stacks, fn [n, f, t], s ->
+    {moved, s} =
+      Enum.reduce(1..n, {[], s}, fn _, {m, s} ->
+        [x | xs] = s[f]
+        {[x | m], Map.put(s, f, xs)}
+      end)
+
+    moved = Enum.reverse(moved)
+
+    Map.put(s, t, moved ++ s[t])
+  end)
+
+Enum.reduce(1..num, [], fn i, m ->
+  [c | _] = stacks_2[i]
+  [c | m]
+end)
+|> Enum.reverse()
+```

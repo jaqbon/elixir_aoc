@@ -1,0 +1,151 @@
+# 2022 Day 8
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+grid =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, ""))
+  |> Enum.map(fn list ->
+    list =
+      Enum.reduce(list, [], fn c, l ->
+        case c do
+          "" -> l
+          _ -> [String.to_integer(c) | l]
+        end
+      end)
+
+    Enum.reverse(list)
+  end)
+
+rows = length(grid)
+[first_row | _] = grid
+cols = length(first_row)
+
+{_, grid} =
+  Enum.reduce(grid, {0, %{}}, fn row, {y, g1} ->
+    {_, g1} =
+      Enum.reduce(row, {0, g1}, fn h, {x, g2} ->
+        {x + 1, Map.put(g2, {x, y}, h)}
+      end)
+
+    {y + 1, g1}
+  end)
+```
+
+## Part 1
+
+```elixir
+outside =
+  Enum.reduce(0..(cols - 1), MapSet.new(), fn x, o ->
+    MapSet.put(o, {x, 0}) |> MapSet.put({x, rows - 1})
+  end)
+
+outside =
+  Enum.reduce(1..(rows - 2), outside, fn y, o ->
+    MapSet.put(o, {0, y}) |> MapSet.put({cols - 1, y})
+  end)
+```
+
+## Part 1
+
+```elixir
+{_, visible} =
+  Enum.reduce(1..(rows - 2), {nil, MapSet.new()}, fn y, {_, visible} ->
+    # visible from left
+    {_, v1} =
+      Enum.reduce(1..(cols - 2), {grid[{0, y}], visible}, fn x, {hmax, v1} ->
+        case hmax < grid[{x, y}] do
+          true -> {grid[{x, y}], MapSet.put(v1, {x, y})}
+          _ -> {hmax, v1}
+        end
+      end)
+
+    # visible from right
+    Enum.reduce((cols - 2)..1, {grid[{cols - 1, y}], v1}, fn x, {hmax, v2} ->
+      case hmax < grid[{x, y}] do
+        true -> {grid[{x, y}], MapSet.put(v2, {x, y})}
+        _ -> {hmax, v2}
+      end
+    end)
+  end)
+
+# visible from top
+{_, visible} =
+  Enum.reduce(1..(cols - 2), {nil, visible}, fn x, {_, visible} ->
+    {_, v1} =
+      Enum.reduce(1..(rows - 2), {grid[{x, 0}], visible}, fn y, {hmax, v1} ->
+        case hmax < grid[{x, y}] do
+          true -> {grid[{x, y}], MapSet.put(v1, {x, y})}
+          _ -> {hmax, v1}
+        end
+      end)
+
+    # visible from bottom
+    Enum.reduce((rows - 2)..1, {grid[{x, rows - 1}], v1}, fn y, {hmax, v2} ->
+      case hmax < grid[{x, y}] do
+        true -> {grid[{x, y}], MapSet.put(v2, {x, y})}
+        _ -> {hmax, v2}
+      end
+    end)
+  end)
+```
+
+```elixir
+MapSet.union(outside, visible) |> MapSet.size()
+```
+
+## Part 2
+
+```elixir
+for y <- 1..(rows - 2), x <- 1..(cols - 2) do
+  h = grid[{x, y}]
+
+  left =
+    Enum.reduce_while((x - 1)..0, 0, fn x1, n ->
+      case grid[{x1, y}] < h do
+        true -> {:cont, n + 1}
+        _ -> {:halt, n + 1}
+      end
+    end)
+
+  right =
+    Enum.reduce_while((x + 1)..(cols - 1), 0, fn x1, n ->
+      case grid[{x1, y}] < h do
+        true -> {:cont, n + 1}
+        _ -> {:halt, n + 1}
+      end
+    end)
+
+  up =
+    Enum.reduce_while((y - 1)..0, 0, fn y1, n ->
+      case grid[{x, y1}] < h do
+        true -> {:cont, n + 1}
+        _ -> {:halt, n + 1}
+      end
+    end)
+
+  down =
+    Enum.reduce_while((y + 1)..(rows - 1), 0, fn y1, n ->
+      case grid[{x, y1}] < h do
+        true -> {:cont, n + 1}
+        _ -> {:halt, n + 1}
+      end
+    end)
+
+  left * right * up * down
+end
+|> Enum.max()
+```

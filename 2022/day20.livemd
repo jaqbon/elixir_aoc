@@ -1,0 +1,124 @@
+# 2022 Day 20
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+encrypted =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer(&1))
+```
+
+```elixir
+defmodule Day20_Part1 do
+  def mix(_, len, len, decrypted), do: decrypted
+
+  def mix(encrypted, len, count, decrypted) do
+    val_to_move = Enum.at(encrypted, count)
+
+    move_from = Enum.find_index(decrypted, fn x -> x == val_to_move end)
+
+    # in effect, left-shift val to front, then remove it
+    tmp = Enum.drop(decrypted, move_from+1) ++ Enum.take(decrypted, move_from)
+    
+    move_to = Integer.mod(val_to_move, len-1)
+
+    new_decrypted =
+      tmp
+      |> List.insert_at(move_to, val_to_move)
+
+    mix(encrypted, len, count+1, new_decrypted)
+  end
+
+  def decrypt(encrypted) do
+    mixed = mix(encrypted, length(encrypted), 0, encrypted)
+
+    zero_pos = Enum.find_index(mixed, fn x -> x == 0 end)
+
+    #IO.inspect(zero_pos, label: "zero_pos")
+    len = length(mixed)
+
+    1000..3000//1000
+    |> Enum.reduce([], fn offset, list ->
+          [Enum.at(mixed, Integer.mod(zero_pos + offset, len)) | list]
+        end)
+    #|> IO.inspect()
+    |> Enum.sum()
+  end
+end
+```
+
+```elixir
+Day20_Part1.decrypt(encrypted)
+```
+
+```elixir
+defmodule Day20_Part2 do
+  def mix(_, len, len, decrypted), do: decrypted
+
+  def mix(encrypted, len, count, decrypted) do
+    val_to_move = Enum.at(encrypted, count)
+
+    move_from = Enum.find_index(decrypted, fn x -> x == val_to_move end)
+
+    # in effect, left-shift val to front, then remove it
+    tmp = Enum.drop(decrypted, move_from+1) ++ Enum.take(decrypted, move_from)
+    
+    move_to = Integer.mod(val_to_move, len-1)
+
+    new_decrypted =
+      tmp
+      |> List.insert_at(move_to, val_to_move)
+
+    mix(encrypted, len, count+1, new_decrypted)
+  end
+
+  def decrypt(encrypted) do
+    #mult = Enum.map(encrypted, fn x -> 811589153 * x end)
+
+    mixed =
+      1..10
+      |> Enum.reduce(encrypted, fn _, dec ->
+            mix(encrypted, length(encrypted), 0, dec)
+          end)
+
+    zero_pos = Enum.find_index(mixed, fn x -> x == 0 end)
+
+    IO.inspect(zero_pos, label: "zero_pos")
+    len = length(mixed)
+
+    sum =
+      1000..3000//1000
+      |> Enum.reduce([], fn offset, list ->
+            [Enum.at(mixed, Integer.mod(zero_pos + offset, len)) | list]
+          end)
+      |> IO.inspect()
+      |> Enum.sum()
+
+    811589153 * sum
+  end
+end
+```
+
+```elixir
+# 1623178306
+```
+
+```elixir
+Day20_Part2.decrypt(encrypted)
+```
+
+```elixir
+# -8646670836062 wrong
+```

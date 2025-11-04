@@ -1,0 +1,148 @@
+# 2022 Day 13
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.16.1"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+lines =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+```
+
+```elixir
+defmodule Day13 do
+  def parse_list([], list), do: list
+
+  def parse_list(["[" | rest], list) do
+    {sub, rest1} = parse_list(rest, [])
+    parse_list(rest1, [sub | list])
+  end
+
+  def parse_list(["]" | rest], list), do: {Enum.reverse(list), rest}
+
+  def parse_list([c | rest], list), do: parse_list(rest, [c | list])
+
+  def parse_list(input) do
+    {output,_} = parse_list(Enum.drop(input,1), [])
+
+    output
+  end
+
+
+  def make_packets(lines) do
+    lines
+    |> Enum.map(&String.graphemes(&1))
+
+    # put multidigit numbers back together
+    |> Enum.map(&Enum.reduce(&1, {[],""}, fn c, {list, digits} ->
+          case Integer.parse(c) do
+            :error ->
+              if String.length(digits) == 0, do: {[c|list],""}, else: {[c,digits|list],""}
+            _ ->
+              if String.length(digits) == 0, do: {list,c}, else: {list,digits<>c}
+          end
+        end))
+    |> Enum.map(fn {list,_} -> Enum.reverse(list) end)
+
+    |> Enum.map(fn list ->
+          list
+          |> Enum.reduce([], fn c, acc -> (if c == ",", do: acc, else: [c | acc]) end)
+          |> Enum.reverse()
+        end)
+    |> Enum.map(fn list ->
+          list
+          |> Enum.map(fn c ->
+                case c do
+                  "[" -> "["
+                  "]" -> "]"
+                  num -> String.to_integer(num)
+                end
+              end)
+          end)
+    |> Enum.map(&parse_list(&1))
+  end
+
+
+  def compare([], []), do: :cont
+  def compare([], _),  do: true
+  def compare(_, []),  do: false
+
+  def compare([h1|r1], [h2|r2]) do
+    case compare(h1, h2) do
+      :cont -> compare(r1, r2)
+      comp  -> comp
+    end
+  end
+
+  def compare(l1, n2) when is_list(l1), do: compare(l1, [n2])
+  def compare(n1, l2) when is_list(l2), do: compare([n1], l2)
+
+  def compare( n,  n), do: :cont
+  def compare(n1, n2), do: n1 < n2
+
+
+  def compare_packet_pairs(packet_pairs) do
+    Enum.map(packet_pairs, fn [p1, p2] -> compare(p1, p2) end)
+  end
+
+
+  def sort_packets(packets) do
+    Enum.sort(packets, &compare(&1,&2))
+  end
+end
+```
+
+```elixir
+packets = Day13.make_packets(lines)
+```
+
+```elixir
+packet_pairs = Enum.chunk_every(packets, 2)
+```
+
+```elixir
+comparisons = Day13.compare_packet_pairs(packet_pairs)
+```
+
+```elixir
+comparisons
+|> Enum.with_index(1)
+|> Enum.reduce(0, fn {comp, index}, sum ->
+      if comp, do: index + sum, else: sum
+    end)
+```
+
+```elixir
+packets_plus_dividers = packets ++ [[[2]], [[6]]]
+```
+
+```elixir
+sorted_packets = Day13.sort_packets(packets_plus_dividers)
+```
+
+```elixir
+{index2, index6} =
+  sorted_packets
+  |> Enum.with_index(1)
+  |> Enum.reduce({nil,nil}, fn {packet, index}, {i2,i6} ->
+        case packet do
+          [[2]] -> {index,i6}
+          [[6]] -> {i2,index}
+          _     -> {i2,i6}
+        end
+      end)
+```
+
+```elixir
+index2 * index6
+```

@@ -1,0 +1,239 @@
+# 2022 Day 7
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+output =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1))
+  |> Enum.map(fn [x | xs] = list ->
+    if x == "$" or x == "dir" do
+      list
+    else
+      [String.to_integer(x) | xs]
+    end
+  end)
+```
+
+```elixir
+defmodule Part1 do
+  def make_sizes(file_system, []), do: file_system
+
+  def make_sizes(file_system, dir) do
+    {_, contents} = file_system[dir]
+
+    # get a list of subdirectories, and total size of all files
+    {dirs, file_size_sum} =
+      Enum.reduce(contents, {[], 0}, fn c, {ds, szs} ->
+        case c do
+          {:dir, _, name} -> {[[name | dir] | ds], szs}
+          {:file, sz, _} -> {ds, szs + sz}
+        end
+      end)
+
+    # recursively make sizes of subdirectories
+    file_system = Enum.reduce(dirs, file_system, fn d, fs -> make_sizes(fs, d) end)
+
+    # total size of all subdirectories
+    dir_size_sum =
+      Enum.reduce(dirs, 0, fn d, szs ->
+        {{sz, _, _}, _} = file_system[d]
+        szs + sz
+      end)
+
+    {_, contents} = file_system[dir]
+
+    Map.put(
+      file_system,
+      dir,
+      {{dir_size_sum + file_size_sum, dir_size_sum, file_size_sum}, contents}
+    )
+  end
+
+  def make_sizes(file_system), do: make_sizes(file_system, [["/"]])
+  # process the terminal output, line-by-line
+
+  # process_output([list of outputs], [current path], %{file system})
+  #
+  # returns %{file system}
+  #
+  #
+  # %{file_system}
+  #
+  # key is a list containing a directory path
+  #
+  # value is {{total_size, total_size_of_dirs, total_size_of_files}, contents}}
+  #
+  # where contents is a MapSet with elements {type, size, name}
+  #
+  # and type is :dir or :file
+
+  def process_output([], _, file_system), do: file_system
+
+  def process_output([["$", "cd", "/"] | output], _, file_system) do
+    file_system =
+      case file_system[["/"]] do
+        nil -> Map.put(file_system, ["/"], {{0, 0, 0}, MapSet.new()})
+        _ -> file_system
+      end
+
+    process_output(output, ["/"], file_system)
+  end
+
+  def process_output([["$", "cd", ".."] | output], [_ | path], file_system) do
+    process_output(output, path, file_system)
+  end
+
+  def process_output([["$", "cd", dir] | output], path, file_system) do
+    new_dir = [dir | path]
+
+    file_system =
+      case file_system[new_dir] do
+        nil ->
+          {sizes, contents} = file_system[path]
+
+          file_system
+          |> Map.put(new_dir, {{0, 0, 0}, MapSet.new()})
+          |> Map.put(path, {sizes, MapSet.put(contents, {:dir, 0, new_dir})})
+
+        _ ->
+          file_system
+      end
+
+    process_output(output, new_dir, file_system)
+  end
+
+  def process_output([["$", "ls"] | output], path, file_system) do
+    process_output(output, path, file_system)
+  end
+
+  def process_output([["dir", name] | output], path, file_system) do
+    dir_path = [name | path]
+
+    file_system =
+      case file_system[dir_path] do
+        nil ->
+          {sizes, contents} = file_system[path]
+
+          file_system
+          |> Map.put(dir_path, {{0, 0, 0}, MapSet.new()})
+          |> Map.put(path, {sizes, MapSet.put(contents, {:dir, 0, name})})
+
+        _ ->
+          file_system
+      end
+
+    process_output(output, path, file_system)
+  end
+
+  def process_output([[size, name] | output], path, file_system) do
+    {{_, fsum, _}, contents} = file_system[path]
+
+    contents = MapSet.put(contents, {:file, size, name})
+
+    file_system = Map.put(file_system, path, {{0, fsum + size, 0}, contents})
+
+    process_output(output, path, file_system)
+  end
+
+  def make_file_system(output) do
+    file_system = process_output(output, [], %{})
+
+    make_sizes(file_system, ["/"])
+  end
+
+  def find_dirs_less_than(file_system, dir, max_size, dir_list) do
+    {{size, _, _}, contents} = file_system[dir]
+
+    # get a list of subdirectories, and total size of all files
+    dirs =
+      Enum.reduce(contents, [], fn c, ds ->
+        case c do
+          {:dir, _, name} -> [[name | dir] | ds]
+          _ -> ds
+        end
+      end)
+
+    # recursively search subdirectories
+    dir_list =
+      Enum.reduce(dirs, dir_list, fn d, dl ->
+        find_dirs_less_than(file_system, d, max_size, dl)
+      end)
+
+    if size <= max_size, do: [{size, dir} | dir_list], else: dir_list
+  end
+
+  def find_dirs_less_than(file_system, max_size) do
+    find_dirs_less_than(file_system, ["/"], max_size, [])
+  end
+
+  def find_dirs_greater_than(file_system, dir, min_size, dir_list) do
+    {{size, _, _}, contents} = file_system[dir]
+
+    # get a list of subdirectories, and total size of all files
+    dirs =
+      Enum.reduce(contents, [], fn c, ds ->
+        case c do
+          {:dir, _, name} -> [[name | dir] | ds]
+          _ -> ds
+        end
+      end)
+
+    # recursively search subdirectories
+    dir_list =
+      Enum.reduce(dirs, dir_list, fn d, dl ->
+        find_dirs_greater_than(file_system, d, min_size, dl)
+      end)
+
+    if size >= min_size, do: [{size, dir} | dir_list], else: dir_list
+  end
+
+  def find_dirs_greater_than(file_system, min_size) do
+    find_dirs_greater_than(file_system, ["/"], min_size, [])
+  end
+end
+```
+
+```elixir
+file_system = Part1.make_file_system(output)
+```
+
+## Part 1
+
+```elixir
+small_dir_list = Part1.find_dirs_less_than(file_system, 100_000)
+```
+
+```elixir
+Enum.reduce(small_dir_list, 0, fn {size, _}, total -> size + total end)
+```
+
+## Part 2
+
+```elixir
+{{used_size, _, _}, _} = file_system[["/"]]
+
+unused_size = 70_000_000 - used_size
+
+required_size = 30_000_000 - unused_size
+```
+
+```elixir
+big_dir_list = Part1.find_dirs_greater_than(file_system, required_size)
+```
+
+```elixir
+Enum.sort_by(big_dir_list, fn {size, _} -> size end)
+```

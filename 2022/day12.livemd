@@ -1,0 +1,79 @@
+# 2022 Day 12
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+{rows, cols, height, start, goal} =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_charlist(&1))
+  |> Enum.reduce({0, 0, %{}, nil, nil}, fn row, {i, cols, h, s, e} ->
+    {cols, h, s, e} =
+      Enum.reduce(row, {0, h, s, e}, fn c, {j, h1, s1, e1} ->
+        case c do
+          ?S -> {j + 1, Map.put(h1, {i, j}, ?a - ?a), {i, j}, e1}
+          ?E -> {j + 1, Map.put(h1, {i, j}, ?z - ?a), s1, {i, j}}
+          _ -> {j + 1, Map.put(h1, {i, j}, c - ?a), s1, e1}
+        end
+      end)
+
+    {i + 1, cols, h, s, e}
+  end)
+```
+
+```elixir
+dist = Map.put(%{}, start, 0)
+
+prev = %{}
+
+q = %{}
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  @neighbors [{1,0},{-1,0},{0,1},{0,-1}]
+
+  dijkstra(_height, dist, prev, []), do: {dist, prev}
+
+  dijkstra(height, dist, prev, [{i,j}=q|qs]) do
+    h = height[q]
+    q1 =
+      Enum.reduce(@neighbors, [], fn {di,dj}, ns ->
+        n = {i+di,j+dj}
+        if height[q1] - h <= 1, do: [n|ns], else: ns
+      end)
+  end
+end
+```
+
+```elixir
+for i <- 0..(rows - 1) do
+  l =
+    Enum.reduce(0..(cols - 1), [], fn j, s ->
+      h = height[{i, j}]
+
+      c = h + ?a
+
+      [c | s]
+    end)
+
+  IO.puts(to_string(Enum.reverse(l)))
+end
+```
+
+```elixir
+grid[goal]
+```

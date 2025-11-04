@@ -1,0 +1,137 @@
+# 2022 Day 18
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+cubes =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1, ","))
+  |> Enum.map(fn [x, y, z] ->
+    {String.to_integer(x), String.to_integer(y), String.to_integer(z)}
+  end)
+```
+
+```elixir
+defmodule Part1 do
+  def merge_clusters(clusters, ids) do
+    [i | ids] = Enum.sort(ids)
+
+    clusters =
+      Enum.reduce(ids, clusters, fn j, c ->
+        Map.put(c, i, c[i] ++ c[j])
+        Map.delete(c, j)
+      end)
+
+    # IO.inspect(clusters, label: "in merge")
+
+    keys = Map.keys(clusters) |> Enum.sort(:desc)
+
+    {clusters, _} =
+      Enum.reduce_while(ids, {clusters, keys}, fn id, {c, [k | keys]} ->
+        case k > id do
+          true ->
+            c = Map.put(c, id, c[k])
+            c = Map.delete(c, k)
+            {:cont, {c, keys}}
+
+          _ ->
+            {:halt, {c, keys}}
+        end
+      end)
+
+    clusters
+  end
+
+  def search_a_cluster([], _), do: false
+
+  def search_a_cluster([{x0, y0, z0} | cluster], {x, y, z} = cube) do
+    case abs(x - x0) + abs(y - y0) + abs(z - z0) do
+      1 -> true
+      _ -> search_a_cluster(cluster, cube)
+    end
+  end
+
+  def search_clusters(clusters, cube) do
+    # IO.inspect(clusters)
+    n = map_size(clusters)
+
+    ids =
+      Enum.reduce(0..(n - 1), [], fn i, ids ->
+        case search_a_cluster(clusters[i], cube) do
+          true -> [i | ids]
+          _ -> ids
+        end
+      end)
+
+    ids = Enum.reverse(ids)
+
+    case ids do
+      [] ->
+        Map.put(clusters, n, [cube])
+
+      [id] ->
+        Map.put(clusters, id, [cube | clusters[id]])
+
+      _ ->
+        [i | _] = ids
+        merge_clusters(Map.put(clusters, i, [cube | clusters]), ids)
+    end
+  end
+
+  def cluster([], clusters), do: clusters
+
+  def cluster([cube | cubes], clusters) do
+    clusters = search_clusters(clusters, cube)
+
+    cluster(cubes, clusters)
+  end
+
+  def cluster([cube | cubes]) do
+    cluster(cubes, Map.put(%{}, 0, [cube]))
+  end
+
+  def area_of_cluster([_], area), do: area
+
+  def area_of_cluster([{x0, y0, z0} | cubes], area) do
+    num_connections =
+      Enum.reduce(cubes, 0, fn {x, y, z}, n ->
+        case abs(x - x0) + abs(y - y0) + abs(z - z0) do
+          1 -> n + 1
+          _ -> n
+        end
+      end)
+
+    area_of_cluster(cubes, area - 2 * num_connections)
+  end
+
+  def area_of_cluster(cubes), do: area_of_cluster(cubes, 6 * length(cubes))
+
+  def area(clusters) do
+    Enum.reduce(clusters, 0, fn {_, cluster}, area ->
+      new_area = area_of_cluster(cluster)
+      # IO.inspect(new_area)
+      new_area + area
+    end)
+  end
+end
+```
+
+```elixir
+clusters = Part1.cluster(cubes)
+```
+
+```elixir
+Part1.area(clusters)
+```

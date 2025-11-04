@@ -1,0 +1,83 @@
+# 2022 Day 10
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+```elixir
+input = Kino.Input.textarea("Please paste your input:")
+```
+
+```elixir
+instructions =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.split(&1))
+  |> Enum.map(fn list ->
+    case list do
+      ["noop"] -> :noop
+      ["addx", x] -> [:addx, String.to_integer(x)]
+    end
+  end)
+```
+
+## Part 1
+
+```elixir
+{_, _, output} =
+  Enum.reduce(instructions, {1, 1, %{}}, fn instruction, {t, state, output} ->
+    case instruction do
+      :noop -> {t + 1, state, Map.put(output, t, state)}
+      [:addx, x] -> {t + 2, state + x, Map.put(Map.put(output, t, state), t + 1, state + x)}
+    end
+  end)
+
+output = Map.put(output, 0, 1)
+```
+
+```elixir
+Enum.reduce(20..220//40, 0, fn time, sum -> sum + time * output[time - 1] end)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def display(_, rows, rows, _), do: :ok
+
+  def display(output, row, rows, cols) do
+    line =
+      for col <- 0..(cols - 1) do
+        cycle = col + cols * row
+        sprite_position = output[cycle]
+        # IO.inspect([cycle, sprite_position])
+        if abs(sprite_position - col) <= 1, do: ?#, else: ?.
+      end
+
+    line = Enum.reverse(line)
+    line = Enum.reduce(line, [], fn c, l -> [c, c | l] end)
+    IO.puts(to_string(line))
+
+    display(output, row + 1, rows, cols)
+  end
+
+  def display(output, rows, cols), do: display(output, 0, rows, cols)
+
+  def display(output), do: display(output, 6, 40)
+end
+```
+
+```elixir
+junk = for _ <- 1..5, do: ?#
+
+Enum.reduce(junk, [], fn c, l -> [c, c | l] end)
+```
+
+```elixir
+Part2.display(output)
+```
